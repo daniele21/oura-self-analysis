@@ -23,6 +23,48 @@ class TestLocalOura(unittest.TestCase):
         self.assertEqual(app.COLLECTIONS["daily_sleep"], "daily")
         self.assertEqual(app.COLLECTIONS["heartrate"], "heartrate")
 
+    def test_oura_extapi_scopes_are_normalized(self):
+        raw = "extapi:daily extapi:heartrate extapi:workout extapi:tag extapi:spo2"
+        self.assertEqual(
+            app.parse_granted_scopes(raw),
+            {"daily", "heartrate", "workout", "tag", "spo2"},
+        )
+
+    def test_plain_and_mixed_scopes_remain_supported(self):
+        self.assertEqual(app.parse_granted_scopes("daily extapi:heartrate"),
+                         {"daily", "heartrate"})
+        self.assertEqual(app.parse_granted_scopes("extapi:daily_extra"),
+                         {"daily_extra"})
+        self.assertEqual(app.parse_granted_scopes(""), set())
+        self.assertIsNone(app.parse_granted_scopes(None))
+
+    def test_sync_with_prefixed_daily_scope_fetches(self):
+        from argparse import Namespace
+        args = Namespace(days=30, start=None, end=None,
+                         collections="daily_sleep,sleep,daily_readiness,daily_activity")
+        token = {"scope": "extapi:daily extapi:heartrate"}
+        with patch.object(app, "token_load", return_value=token), \
+             patch.object(app, "fetch_pages", return_value=2) as fetch:
+            app.sync(args)
+        self.assertEqual(fetch.call_count, 4)
+
+    def test_sync_with_only_unrelated_scopes_skips(self):
+        from argparse import Namespace
+        args = Namespace(days=30, start=None, end=None, collections="daily_sleep")
+        with patch.object(app, "token_load",
+                          return_value={"scope": "extapi:heartrate"}), \
+             patch.object(app, "fetch_pages") as fetch:
+            app.sync(args)
+        fetch.assert_not_called()
+
+    def test_empty_grants_do_not_bypass_scope_check(self):
+        from argparse import Namespace
+        args = Namespace(days=30, start=None, end=None, collections="daily_sleep")
+        with patch.object(app, "token_load", return_value={"scope": ""}), \
+             patch.object(app, "fetch_pages") as fetch:
+            app.sync(args)
+        fetch.assert_not_called()
+
     def test_missing_refresh_token_does_not_overwrite(self):
         with patch.object(app, "secret_write") as writer:
             with self.assertRaises(app.OuraError):

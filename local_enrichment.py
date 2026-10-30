@@ -83,7 +83,12 @@ def daily_records(db: Path, start: date, end: date) -> dict[str, dict[str, list[
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
         rows = con.execute(
-            "SELECT day, collection, payload FROM records WHERE day BETWEEN ? AND ?",
+            """SELECT day, collection, payload FROM records
+               WHERE day BETWEEN ? AND ?
+               AND collection IN (
+                   'daily_sleep', 'sleep', 'daily_readiness',
+                   'daily_activity', 'daily_spo2'
+               )""",
             (start.isoformat(), end.isoformat()),
         )
         for day, collection, payload in rows:
@@ -291,7 +296,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Local enrichment: {meta['row_count']} days -> {csv_path}")
         if args.command in ("publish", "run"):
             publish_to_drive(csv_path, manifest_path, args.drive_dir)
-            print(f"Copied 2 files to Drive Desktop folder: {args.drive_dir.expanduser()}")
+            print(f"Copied 2 files to selected folder: {args.drive_dir.expanduser()}")
             print("Cloud synchronization is handled by Google Drive for Desktop; verify its sync status.")
         return 0
     except (oura.OuraError, sqlite3.Error, OSError) as exc:

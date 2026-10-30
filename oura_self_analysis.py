@@ -344,6 +344,23 @@ def fetch_pages(con: sqlite3.Connection, name: str, start: date, end: date) -> i
         params["next_token"] = next_token
 
 
+def parse_granted_scopes(raw_scope: object) -> set[str] | None:
+    """Oura returns e.g. 'extapi:daily', while API permissions use 'daily'.
+
+    Preserve the original token response in Keychain; normalize only for
+    permission checks. None means the response did not provide scopes, while
+    an explicitly empty string means no scopes were granted.
+    """
+    if raw_scope is None:
+        return None
+    if not isinstance(raw_scope, str):
+        raise OuraError("Unexpected OAuth scope format from Oura.")
+    return {
+        scope.removeprefix("extapi:")
+        for scope in raw_scope.split()
+    }
+
+
 def sync(args: argparse.Namespace) -> None:
     today = date.today()
     if args.days < 1:
@@ -361,12 +378,12 @@ def sync(args: argparse.Namespace) -> None:
     saved = token_load()
     if not saved:
         raise OuraError("Run 'login' before 'sync'.")
-    granted = set(saved.get("scope", "").split())
+    granted = parse_granted_scopes(saved.get("scope"))
     failures = []
     with open_database() as con:
         for name in dict.fromkeys(names):
             needed = COLLECTIONS[name]
-            if granted and needed not in granted:
+            if granted is not None and needed not in granted:
                 print(f"{name}: skipped (scope '{needed}' was not granted)")
                 continue
             try:

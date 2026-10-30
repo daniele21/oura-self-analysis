@@ -6,7 +6,7 @@
 
 Oura Self-Analysis is a small, independent project intended solely for the repository owner's personal, non-commercial exploration of their own Oura Ring data.
 
-The project is currently a repository with registration documentation. It is not a publicly offered application or hosted health service.
+The repository provides a local macOS Oura API client, deterministic data enrichment, and an optional personal Google Drive Desktop export. It is not a publicly offered application or hosted health service.
 
 ## 2. Access and authorization
 
@@ -14,7 +14,7 @@ Data may only be accessed through Oura-supported authorization methods, with the
 
 ## 3. No medical advice
 
-Any future charts, comparisons, correlations, or algorithmic insights are intended for information and experimentation only. They are **not** medical advice, diagnosis, treatment, or a substitute for a qualified healthcare professional.
+Any charts, comparisons, correlations, or computed statistical summaries are intended for information and experimentation only. They are **not** medical advice, diagnosis, treatment, or a substitute for a qualified healthcare professional.
 
 ## 4. Availability and accuracy
 

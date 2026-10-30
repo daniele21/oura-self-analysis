@@ -1,79 +1,104 @@
 # Oura Self-Analysis
 
-Private, local-first integration for extracting **your own** Oura Ring data via the official API V2. This is not a hosted service and is not affiliated with Oura.
+Personal Oura Ring data pipeline: **Oura API → local SQLite → local deterministic enrichment → optional Google Drive Desktop sync**. No cloud runtime, external AI, or credentials stored in this public repository.
 
-## 1. First login on macOS
+## 1. Connect and sync Oura
 
-Requirements: Oura OAuth application, active Oura API access, Python 3.10+, [uv](https://docs.astral.sh/uv/).
+Requires macOS, Python 3.10+, [uv](https://docs.astral.sh/uv/) and Oura API access. Configure the OAuth callback in the Oura portal as http://localhost:8989/callback.
 
-Ensure the Oura app has **exactly** this registered redirect URI:
+~~~bash
+git clone https://github.com/daniele21/oura-self-analysis.git
+cd oura-self-analysis
+uv run --no-project --with keyring python oura_self_analysis.py login
+uv run --no-project --with keyring python oura_self_analysis.py sync --days 30
+uv run --no-project --with keyring python oura_self_analysis.py report
+~~~
 
-    http://localhost:8989/callback
-
-Run in macOS Terminal:
-
-    git clone https://github.com/daniele21/oura-self-analysis.git
-    cd oura-self-analysis
-    uv run --no-project --with keyring python oura_self_analysis.py login
-
-When prompted, enter the **Client ID** and **Client Secret** from Oura Developer Portal. The secret is hidden while you type. Do not put it in a chat message or GitHub. Your browser opens the Oura authorization page; approve the requested scopes.
-
-Credentials and rotating OAuth tokens are saved to **macOS Keychain**, not to this repository.
-
-## 2. Extract data and see a summary
-
-    uv run --no-project --with keyring python oura_self_analysis.py status
-    uv run --no-project --with keyring python oura_self_analysis.py sync --days 30
-    uv run --no-project --with keyring python oura_self_analysis.py report
-
-The sync requests recent **sleep scores, detailed sleep, readiness and activity** data, following every API page. Data is saved in a SQLite database here:
+Enter your Oura Client ID and Secret only in the **local Terminal prompt**. OAuth tokens and credentials are stored in macOS Keychain, never committed. The database is:
 
     ~/Library/Application Support/OuraSelfAnalysis/oura.sqlite3
 
-The database is private and never uploaded. Sync can be repeated: existing records are updated without duplication.
+The original collector handles scopes with Oura's extapi: prefix, pagination, token refresh, and idempotent upserts.
 
-To backfill older records:
+## 2. Enrich your data locally
 
-    uv run --no-project --with keyring python oura_self_analysis.py sync --start 2025-01-01
+~~~bash
+uv run --no-project --with keyring python local_enrichment.py enrich --days 30
+~~~
 
-To include other authorized data sources:
+Two files are generated **outside the repository**:
 
-    uv run --no-project --with keyring python oura_self_analysis.py sync --days 7 --collections daily_sleep,sleep,daily_readiness,daily_activity,heartrate,workout,enhanced_tag,daily_spo2
+    ~/Library/Application Support/OuraSelfAnalysis/enriched/daily_enriched.csv
+    ~/Library/Application Support/OuraSelfAnalysis/enriched/manifest.json
 
-Dates use YYYY-MM-DD; the optional \`--end\` is exclusive. Heart-rate boundaries use UTC. If some scopes were not granted by the user, those collections are skipped; other API errors are shown explicitly. Data may lag until Oura has synced to its cloud.
+The CSV has one row for each available day in the rolling 30-day window (configurable 1–90 days). It contains sleep/readiness/activity scores, steps, sleep duration by stage (minutes), sleep efficiency, nighttime HR/HRV, temperature deviation, SpO₂ (if present), rolling 7-day means, differences from the previous 28-day baseline, and missing-source indicators. Means require at least 3 observations (7 days) or 7 observations (28 days), respectively. Missing values remain blank, never zero. The main overnight sleep takes precedence over naps.
 
-## Technical safeguards
+**This is upsert/snapshot logic, not naive append.** Each run rewrites a single current CSV and manifest so corrected Oura records do not generate duplicate rows. No AI/LLM processing is performed.
 
-- OAuth2 authorization-code flow with PKCE S256 and random CSRF state.
-- Local callback bound to \`127.0.0.1:8989\`; registered URI must match exactly.
-- Credentials and tokens saved only through macOS Keychain via Python's \`keyring\`; no plaintext fallback.
-- Rotating single-use refresh tokens persisted *before* use, with cross-process file lock.
-- Rate-limit retries, pagination, and idempotent SQLite upserts. The application specifies its User-Agent.
+## 3. Publish only the enriched files to Google Drive
 
-## Troubleshooting
+Use **Google Drive for desktop** on your Mac. This reuses Google's desktop app for login and upload; the Python scripts need no Google OAuth credentials.
 
-- **Redirect mismatch:** update the Oura app's registered redirect URI to exactly \`http://localhost:8989/callback\`.
-- **Port 8989 in use:** close the application occupying the port before logging in.
-- **401 or refresh failure:** rerun \`login\`.
-- **403 or empty data:** check Oura membership (Gen3+), permissions and sync history.
-- **Older versions skip granted scopes:** Oura token responses can contain `extapi:daily` instead of `daily`. This client now normalizes the `extapi:` prefix when checking permissions. If your previous sync printed `scope 'daily' was not granted`, run `git pull --ff-only` and repeat `sync`. You do **not** need another OAuth login.
-- **Keychain errors:** run from a standard interactive macOS session.
+1. Install/sign in to [Google Drive for desktop](https://www.google.com/drive/download/).
+2. In Finder, open Google Drive → My Drive and create a **private folder** named Oura Self Analysis.
+3. Replace the example path below with the actual local path. You can drag the selected folder from Finder into Terminal to get it. Localized My Drive names can vary.
+
+First, publish the current locally enriched export without another API call:
+
+~~~bash
+uv run --no-project --with keyring python local_enrichment.py publish --days 30 \
+  --drive-dir "$HOME/Library/CloudStorage/GoogleDrive-YOUR_ACCOUNT/My Drive/Oura Self Analysis"
+~~~
+
+Or do **Oura sync → local enrichment → Drive folder copy** together:
+
+~~~bash
+uv run --no-project --with keyring python local_enrichment.py run --days 30 \
+  --drive-dir "$HOME/Library/CloudStorage/GoogleDrive-YOUR_ACCOUNT/My Drive/Oura Self Analysis"
+~~~
+
+The destination must already exist. Only daily_enriched.csv and manifest.json are copied; the raw SQLite database, detailed original records and secrets stay on the Mac. Google Drive for desktop handles the actual cloud sync, so **verify its menu bar status** and check the files online. A local copy success message does not prove upload to Google completed.
+
+**Privacy:** the CSV contains sensitive health information in readable form. A regular Google Drive folder is not end-to-end encrypted. Never publish or share the folder. This version deliberately does not add cloud encryption; consider encryption if the files must remain opaque to Google.
+
+**Retention:** Drive gets one rolling snapshot of at most 90 days, not unlimited monthly backups. Google Drive may preserve previous file revisions, which you should manage as needed. Oura's [API/MCP Agreement](https://cloud.ouraring.com/legal/api-agreement) imposes strict limits on retention of API-derived User Data, including derived metrics. Do not assume unlimited historical archiving is allowed.
+
+## 4. Daily automation on the Mac
+
+Once a **manual** run succeeds and Google Drive desktop confirms upload, install the per-user macOS LaunchAgent:
+
+~~~bash
+python3 scripts/install_launch_agent.py install \
+  --drive-dir "$HOME/Library/CloudStorage/GoogleDrive-YOUR_ACCOUNT/My Drive/Oura Self Analysis" \
+  --hour 9 --minute 15 --days 30
+~~~
+
+Runs at 09:15 local time when the Mac is available; uses the existing Keychain, uv and local Drive mount. If the Mac sleeps or Drive is offline, the next successful run reconciles the rolling period.
+
+Logs:
+
+    ~/Library/Application Support/OuraSelfAnalysis/daily-stdout.log
+    ~/Library/Application Support/OuraSelfAnalysis/daily-stderr.log
+
+Remove the schedule without deleting data:
+
+~~~bash
+python3 scripts/install_launch_agent.py uninstall
+~~~
+
+If the repository is moved, reinstall: the agent stores the absolute script path.
+
+## 5. Tests
+
+~~~bash
+python3 -m unittest discover -s tests -v
+~~~
+
+CI uses synthetic records only. No Oura or Google secrets and no real health data are needed.
 
 ## Privacy and limitations
 
 - [Privacy Policy](PRIVACY.md) · [Terms of Service](TERMS.md)
-- Do not share client secrets, access tokens, OAuth authorization codes, the local database, or medical records.
-- No cloud deployment, daily automation, or external AI integration is enabled yet.
-- Oura's [API and MCP Agreement](https://cloud.ouraring.com/legal/api-agreement), effective June 2026, **restricts using Oura API data as input to AI models**. This tool currently does local, non-AI reporting only.
-
-## Tests
-
-    python3 -m unittest discover -s tests -v
-
-All tests run without real health data or Oura credentials.
-
-## Next steps
-
-1. Confirm the local OAuth login and a successful real sync.
-2. Schedule daily incremental sync on macOS (launchd).
-3. Build local dashboards and statistical analysis.
+- The [Oura API/MCP Agreement](https://cloud.ouraring.com/legal/api-agreement) restricts API-derived data as input to AI systems. Enrichment here uses deterministic Python calculations only.
+- No clinical diagnosis, causal inference or public Oura application is provided.
+- This is an independent personal project, not affiliated with Oura.

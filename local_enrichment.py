@@ -137,10 +137,8 @@ def make_base(day: str, records: dict[str, list[dict]]) -> dict:
 
 def window_average(rows: dict[str, dict], current: date, field: str,
                    previous_days: int, include_today: bool, minimum: int) -> float | None:
-    oldest = current - timedelta(days=previous_days - (0 if include_today else 1))
+    oldest = current - timedelta(days=previous_days - 1 if include_today else previous_days)
     newest = current if include_today else current - timedelta(days=1)
-    if include_today:
-        oldest = current - timedelta(days=previous_days - 1)
     values = [
         number(rows.get((oldest + timedelta(days=i)).isoformat(), {}).get(field))
         for i in range((newest - oldest).days + 1)
@@ -243,11 +241,12 @@ def publish_to_drive(csv_path: Path, manifest_path: Path, folder: Path) -> None:
     An atomic rename reduces partially-written files. Drive Desktop then handles
     Google authentication and cloud sync outside this program.
     """
-    folder = folder.expanduser().resolve()
-    if not folder.is_dir():
-        raise oura.OuraError(f"Drive destination does not exist: {folder}")
+    folder = folder.expanduser()
     if folder.is_symlink():
         raise oura.OuraError("Refusing a symlinked Drive destination.")
+    folder = folder.resolve()
+    if not folder.is_dir():
+        raise oura.OuraError(f"Drive destination does not exist: {folder}")
     # Caller must explicitly select a folder within their *private* Drive.
     # We do not assume any arbitrary local directory is backed up automatically.
     for source in (csv_path, manifest_path):

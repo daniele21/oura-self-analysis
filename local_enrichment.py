@@ -281,6 +281,9 @@ def build_parser() -> argparse.ArgumentParser:
         if command != "enrich":
             cmd.add_argument("--drive-dir", type=Path, required=True,
                              help="Existing private Google Drive for Desktop synced folder")
+        if command == "run":
+            cmd.add_argument("--sync-days", type=int, default=7,
+                             help="Fetch the most recent Oura records (default: 7 days)")
     return parser
 
 
@@ -289,8 +292,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "run":
             from argparse import Namespace
+            if not 1 <= args.sync_days <= 90:
+                raise oura.OuraError("--sync-days must be between 1 and 90.")
             # Fail closed: don't upload a snapshot after a failed API sync.
-            oura.sync(Namespace(days=args.days, start=None, end=None,
+            oura.sync(Namespace(days=args.sync_days, start=None, end=None,
                                 collections=",".join(oura.DEFAULT_COLLECTIONS)))
         csv_path, manifest_path, meta = export_local(oura.DB_PATH, days=args.days)
         print(f"Local enrichment: {meta['row_count']} days -> {csv_path}")

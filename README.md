@@ -65,6 +65,41 @@ The destination must already exist. Only daily_enriched.csv and manifest.json ar
 
 **Retention:** Drive gets one rolling snapshot of at most 90 days, not unlimited monthly backups. Google Drive may preserve previous file revisions, which you should manage as needed. Oura's [API/MCP Agreement](https://cloud.ouraring.com/legal/api-agreement) imposes strict limits on retention of API-derived User Data, including derived metrics. Do not assume unlimited historical archiving is allowed.
 
+## Alternative: mount Google Drive virtually (without Drive for desktop)
+
+You **can mount Drive as a virtual folder** with rclone. This does **not** download a full local copy. Writes can use a small local cache until rclone uploads them, so copying into the mounted folder is **not** proof that upload is complete.
+
+1. Install rclone: `brew install rclone`, and run `rclone config` to authorize a remote named `gdrive`. In 2026, rclone's shared Google OAuth client is being retired: [configure your own Google client ID](https://rclone.org/drive/#making-your-own-client-id). This is separate from Oura OAuth.
+2. For **rclone mount**, macOS needs [macFUSE or FUSE-T](https://rclone.org/commands/rclone_mount/#mounting-on-macos). Alternatively, [rclone nfsmount](https://rclone.org/commands/rclone_nfsmount/) uses the built-in NFS stack but is marked **experimental** by rclone.
+3. You can mount **just the existing private Oura Drive folder** by its Drive folder ID:
+
+~~~bash
+mkdir -p "$HOME/mnt/oura-drive"
+
+rclone mount gdrive: "$HOME/mnt/oura-drive" \
+  --drive-root-folder-id 1lwlNWLxiRuFJvYJ4NzuLvCJJWkTfSdq3 \
+  --vfs-cache-mode writes --daemon
+~~~
+
+If you prefer the built-in macOS NFS path, substitute `rclone nfsmount` for `rclone mount`. Check the official compatibility requirements for your rclone/macOS versions.
+
+**Verify the mount is active** (important: the empty mountpoint directory can exist even when Drive is not mounted):
+
+~~~bash
+mount | grep -F "$HOME/mnt/oura-drive"
+~~~
+
+Only after the check succeeds, publish using the **existing local-folder option**:
+
+~~~bash
+uv run --no-project --with keyring python local_enrichment.py publish \
+  --days 30 --drive-dir "$HOME/mnt/oura-drive"
+~~~
+
+The same `--drive-dir` works with `local_enrichment.py run` and the macOS scheduler. But scheduling a mounted folder requires **mounting it before each job** or keeping rclone running, and verifying that the mount is active; the scheduler does not manage mount lifecycle. If the mount is missing, a bare directory still exists, so **do not enable unattended --drive-dir publishing to a mountpoint without an explicit mount verification**. Instead, use the direct `--drive-remote` option for robust unattended daily uploads, which also performs checksum verification.
+
+To unmount: `umount "$HOME/mnt/oura-drive"` (may require closing Finder/other processes using the volume). The cache is local; do not assume unmounting while an upload is pending is safe.
+
 ## 4. Daily automation on the Mac
 
 Once a **manual** run succeeds and Google Drive desktop confirms upload, install the per-user macOS LaunchAgent:

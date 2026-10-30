@@ -1,51 +1,39 @@
 # Privacy Policy — Oura Self-Analysis
 
-**Last updated:** 30 October 2026
+**Last updated: 30 October 2026**
 
-## 1. What this project is
+## Scope
 
-Oura Self-Analysis is an independent, experimental project maintained for personal use by the owner of [this repository](https://github.com/daniele21/oura-self-analysis). Its purpose is to let the owner access, store, and analyze **their own** Oura Ring data using Oura's authorized API.
+This is a non-commercial personal application for the repository owner to access and analyze **their own** Oura Ring records. It is not a hosted or publicly offered service, and does not collect third-party Oura accounts.
 
-**Current status:** this repository contains registration information and documentation, but does **not** currently operate a hosted service that receives or stores Oura data. The processing described below is the intended behavior of a future local integration, not a statement that a deployed service is already running.
+## Data and purposes
 
-## 2. Data and permissions
+After account authorization, the local Mac client requests only the Oura API categories granted through OAuth, such as daily sleep, readiness, activity, HRV, workouts and SpO₂. These may include sensitive health information. Processing is for personal local recordkeeping and descriptive trend analysis; it does not provide medical advice or employ AI models.
 
-If and when the owner completes OAuth authorization and installs the local integration, it may access only the categories approved during Oura authorization, such as daily sleep, activity, readiness, heart rate, workouts, tags, and blood-oxygen summaries. Availability varies by device, membership, granted scopes, and Oura API features.
+Local enrichment produces daily scores, sleep-stage duration, heart rate/HRV, activity counts, descriptive moving averages and differences from historical baselines. Missing values remain unknown rather than being imputed.
 
-An OAuth client ID, client secret, access tokens, and refresh tokens may be required to complete authorization. **Secrets and tokens must be stored privately, not committed to this public repository.**
+## Local storage and credentials
 
-## 3. Purpose and legal context
+Original API records are stored on the owner's Mac in a local SQLite database outside this public repository. API client credentials, access tokens and refresh tokens are stored in **macOS Keychain**, not in the repository.
 
-Data will be used for personal recordkeeping, visualizations, trends, and exploratory analysis. It is not intended for advertising, profiling other individuals, marketing, sale of personal data, or medical diagnosis. This project does not currently invite other Oura users to connect their accounts.
+The local enrichment exports a CSV and manifest in the Mac's application-support directory. The tool does not use external AI or analytics services, and does not upload raw SQLite records, API request logs or authentication credentials to Google Drive.
 
-## 4. Storage, sharing, and third parties
+## Optional Google Drive storage
 
-No server-side Oura data collection is currently deployed for this project. The planned first implementation stores authorized data and credentials on the owner's own device, outside this repository.
+Google Drive integration is **off by default**. If the owner explicitly chooses a destination folder and runs the publish or automated-run command, the tool copies only the enriched daily CSV and its manifest into an **existing Google Drive for desktop** folder.
 
-The integration necessarily communicates with Oura's systems for authorization and API requests. Oura handles data under its own privacy terms. At this stage this project does not intentionally transmit Oura health data to cloud analytics services, external AI models, advertisers, or other independent recipients.
+Google Drive for desktop then synchronizes those files to the owner's Google account, subject to Google's own privacy policies and the sharing settings of that account. This is cloud storage of personal health-related derivatives. **The current integration does not provide end-to-end encryption of the CSV.** The owner must ensure the destination folder remains private and must evaluate whether Google Drive meets their confidentiality requirements.
 
-If cloud storage, external AI processing, or a hosted service is introduced, this policy will be updated beforehand to describe the providers, purposes, data locations, retention, and safeguards. **This public GitHub repository is never an appropriate destination for health-data exports or OAuth credentials.**
+## Retention and deletion
 
-## 5. Retention and deletion
+The optional Drive export contains one overwritten rolling snapshot of **up to 90 days**, with 30 days as the default. A snapshot is not a permanent append-only history. Google Drive may retain earlier revisions of overwritten files under its own policies. The owner controls deletion of exported files and any Drive revisions from their Google account.
 
-Because the initial integration has not yet been deployed, no application-controlled Oura health-data retention period is currently running. For the planned local-only implementation, the owner will control copies of exported data and may delete them from the local device. Deleting local copies does not delete data held by Oura.
+The local SQLite database is not automatically pruned by this version; the owner must periodically evaluate retention and delete data when it is no longer necessary. Oura's [API/MCP Agreement](https://cloud.ouraring.com/legal/api-agreement) restricts keeping API-derived data longer than strictly needed for the authorized purpose, including enriched derivatives. The 30/90-day window is a technical bound, **not a guarantee of compliance** in every situation.
 
-Authorization to the app can be revoked through Oura's account controls, where available. Revoking authorization prevents future access by this integration but does not automatically erase copies already exported.
+Revoking app authorization from Oura stops future authorized API requests but does not automatically erase local or already-uploaded copies. To fully stop and remove copies, uninstall the macOS schedule, delete the local database and enrichment files, delete Google Drive copies/revisions, and revoke Oura OAuth authorization.
 
-## 6. Security
+## Security, sharing and contact
 
-The intended implementation follows data-minimization and least-privilege practices: limited OAuth scopes, private storage of credentials and raw exports, and exclusion of secrets and health records from version control. No claim of absolute security is made.
+Do not commit secrets, SQLite databases, exported files, or personal health data to GitHub. Never share the destination Drive folder publicly. Only the account owner is intended to access the data. For project questions, contact the maintainer through [GitHub](https://github.com/daniele21) without publishing personal health or account information.
 
-## 7. Changes
-
-This policy will be revised if the way data is processed changes. The latest published version is available in this repository.
-
-## 8. Contact
-
-For questions about this project, contact the repository maintainer through [GitHub](https://github.com/daniele21). Please **do not** disclose sensitive health data, credentials, or private account details in a public GitHub issue.
-
-For privacy or account requests about data held by Oura itself, contact Oura directly through its official channels.
-
----
-
-This document describes a personal experimental project. It is not Oura's privacy policy and does not imply any affiliation or endorsement.
+Oura data is accessed through Oura's own systems and Google Drive synchronization (if enabled) is provided by Google. This is an independent project, not affiliated with or endorsed by Oura. This document will be revised before enabling any materially different data processing.

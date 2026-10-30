@@ -1,0 +1,29 @@
+# Authentication and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*token*.json
+*credentials*.json
+*secrets*.json
+
+# Oura health data and local databases
+data/
+exports/
+output/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.parquet
+*.csv
+*.jsonl
+
+# Python, macOS, editors
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store
+.idea/
+.vscode/

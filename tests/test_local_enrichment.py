@@ -131,6 +131,27 @@ class TestLocalEnrichment(unittest.TestCase):
         self.assertEqual(ret, 1)
         publish.assert_not_called()
 
+    def test_daily_run_fetches_7_days_but_exports_30(self):
+        csv_path = self.path / "daily_enriched.csv"
+        manifest_path = self.path / "manifest.json"
+        with patch.object(oura, "sync") as sync, \
+             patch.object(enrich, "export_local", return_value=(
+                 csv_path, manifest_path, {"row_count": 3})) as export, \
+             patch.object(enrich, "publish_to_drive") as publish:
+            ret = enrich.main(["run", "--days", "30",
+                               "--drive-dir", str(self.path)])
+        self.assertEqual(ret, 0)
+        self.assertEqual(sync.call_args.args[0].days, 7)
+        self.assertEqual(export.call_args.kwargs["days"], 30)
+        publish.assert_called_once()
+
+    def test_daily_refresh_window_must_be_valid(self):
+        with patch.object(oura, "sync") as sync:
+            ret = enrich.main(["run", "--sync-days", "0",
+                               "--drive-dir", str(self.path)])
+        self.assertEqual(ret, 1)
+        sync.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

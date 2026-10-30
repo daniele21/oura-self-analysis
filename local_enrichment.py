@@ -20,6 +20,7 @@ from collections import defaultdict
 from statistics import mean
 
 import oura_self_analysis as oura
+from drive_upload import publish_rclone
 
 SCHEMA_VERSION = "1.0"
 EXPORT_FOLDER = oura.APP_HOME / "enriched"
@@ -272,15 +273,20 @@ def publish_to_drive(csv_path: Path, manifest_path: Path, folder: Path) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Enrich Oura records on Mac and optionally publish to a private Drive Desktop folder")
+        description="Enrich Oura records on Mac; publish via Drive Desktop or directly via rclone")
     sub = parser.add_subparsers(dest="command", required=True)
     for command in ("enrich", "publish", "run"):
         cmd = sub.add_parser(command)
         cmd.add_argument("--days", type=int, default=30,
                          help="Rolling export window (1-90 days, default 30)")
         if command != "enrich":
-            cmd.add_argument("--drive-dir", type=Path, required=True,
-                             help="Existing private Google Drive for Desktop synced folder")
+            destination = cmd.add_mutually_exclusive_group(required=True)
+            destination.add_argument("--drive-dir", type=Path,
+                                     help="Existing private Google Drive Desktop synced folder")
+            destination.add_argument("--drive-remote",
+                                     help="Configured Google Drive rclone remote, e.g. gdrive:")
+            cmd.add_argument("--drive-folder-id",
+                             help="Destination Google Drive folder ID (required with --drive-remote)")
         if command == "run":
             cmd.add_argument("--sync-days", type=int, default=7,
                              help="Fetch the most recent Oura records (default: 7 days)")
@@ -300,9 +306,18 @@ def main(argv: list[str] | None = None) -> int:
         csv_path, manifest_path, meta = export_local(oura.DB_PATH, days=args.days)
         print(f"Local enrichment: {meta['row_count']} days -> {csv_path}")
         if args.command in ("publish", "run"):
-            publish_to_drive(csv_path, manifest_path, args.drive_dir)
-            print(f"Copied 2 files to selected folder: {args.drive_dir.expanduser()}")
-            print("Cloud synchronization is handled by Google Drive for Desktop; verify its sync status.")
+            if args.drive_remote:
+                if not args.drive_folder_id:
+                    raise oura.OuraError("--drive-folder-id is required with --drive-remote.")
+                publish_rclone(csv_path, manifest_path, remote=args.drive_remote,
+                               folder_id=args.drive_folder_id)
+                print("Verified 2 enriched files uploaded to the selected Google Drive folder.")
+            else:
+                if args.drive_folder_id:
+                    raise oura.OuraError("--drive-folder-id is only used with --drive-remote.")
+                publish_to_drive(csv_path, manifest_path, args.drive_dir)
+                print(f"Copied 2 files to selected local folder: {args.drive_dir.expanduser()}")
+                print("Cloud sync is handled by Google Drive Desktop; verify its sync status.")
         return 0
     except (oura.OuraError, sqlite3.Error, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

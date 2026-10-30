@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Install a per-user macOS launchd agent for local Oura sync + enrichment.
 
-The job runs only when the Mac is available and the logged-in user's
-Keychain and Google Drive for desktop are accessible.
+The job runs when the Mac is available; Drive uploads can use either
+a local Google Drive Desktop folder or a configured rclone remote.
 """
 from __future__ import annotations
 
@@ -21,15 +21,25 @@ REPO = Path(__file__).resolve().parent.parent
 HOME = Path.home() / "Library" / "Application Support" / "OuraSelfAnalysis"
 
 
-def job_spec(uv: str, drive_dir: Path, hour: int = 9, minute: int = 15, days: int = 30) -> dict:
+def job_spec(uv: str, drive_dir: Path | None, hour: int = 9, minute: int = 15,
+             days: int = 30, *, drive_remote: str | None = None,
+             drive_folder_id: str | None = None) -> dict:
     if not (0 <= hour <= 23 and 0 <= minute <= 59 and 1 <= days <= 90):
         raise ValueError("Invalid time or days (1-90).")
+    if bool(drive_dir) == bool(drive_remote):
+        raise ValueError("Select exactly one Drive destination: local directory or remote.")
+    if drive_remote and not drive_folder_id:
+        raise ValueError("A Google Drive folder ID is required for rclone.")
+    destination = (
+        ["--drive-remote", drive_remote, "--drive-folder-id", drive_folder_id]
+        if drive_remote else ["--drive-dir", str(drive_dir)]
+    )
     return {
         "Label": LABEL,
         "ProgramArguments": [
             uv, "run", "--no-project", "--with", "keyring", "python",
             str(REPO / "local_enrichment.py"), "run", "--days", str(days),
-            "--drive-dir", str(drive_dir),
+            *destination,
         ],
         "WorkingDirectory": str(REPO),
         "StartCalendarInterval": {"Hour": hour, "Minute": minute},
@@ -53,13 +63,21 @@ def install(args):
     uv = shutil.which("uv")
     if uv is None:
         raise RuntimeError("uv not found in PATH; install uv first.")
-    folder = args.drive_dir.expanduser()
-    if folder.is_symlink() or not folder.is_dir():
-        raise RuntimeError("Select an existing, non-symlinked Google Drive Desktop folder.")
-    folder = folder.resolve()
+    folder = None
+    if args.drive_remote:
+        if not shutil.which("rclone"):
+            raise RuntimeError("rclone is not installed; configure it before scheduling.")
+        if not args.drive_folder_id:
+            raise RuntimeError("--drive-folder-id is required when using --drive-remote.")
+    else:
+        folder = args.drive_dir.expanduser()
+        if folder.is_symlink() or not folder.is_dir():
+            raise RuntimeError("Select an existing, non-symlinked Google Drive Desktop folder.")
+        folder = folder.resolve()
     if not (REPO / "local_enrichment.py").is_file():
         raise RuntimeError("Missing local_enrichment.py; run from the checked-out repository.")
-    spec = job_spec(uv, folder, args.hour, args.minute, args.days)
+    spec = job_spec(uv, folder, args.hour, args.minute, args.days,
+                    drive_remote=args.drive_remote, drive_folder_id=args.drive_folder_id)
     HOME.mkdir(parents=True, exist_ok=True, mode=0o700)
     PLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=".oura-launchd-", dir=PLIST_PATH.parent)
@@ -84,7 +102,8 @@ def install(args):
         ) from exc
     print(f"Installed and registered {LABEL}")
     print(f"Schedule: daily at {args.hour:02d}:{args.minute:02d} local time; Mac must be available.")
-    print(f"Drive Desktop folder: {folder}")
+    print(f"Drive destination: {args.drive_remote} (folder ID: {args.drive_folder_id})" if args.drive_remote
+          else f"Drive Desktop folder: {folder}")
     print(f"Logs: {HOME}/daily-stdout.log and daily-stderr.log")
     print("This only registers the schedule; verify the first live sync and Drive upload manually.")
 
@@ -101,8 +120,13 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Manage the macOS Oura daily LaunchAgent")
     commands = parser.add_subparsers(dest="command", required=True)
     add = commands.add_parser("install")
-    add.add_argument("--drive-dir", required=True, type=Path,
-                     help="Existing private Drive Desktop synced folder")
+    dest = add.add_mutually_exclusive_group(required=True)
+    dest.add_argument("--drive-dir", type=Path,
+                      help="Existing private Drive Desktop synced folder")
+    dest.add_argument("--drive-remote",
+                      help="Configured Google Drive rclone remote, e.g. gdrive:")
+    add.add_argument("--drive-folder-id",
+                     help="Drive folder ID, required for rclone upload")
     add.add_argument("--hour", default=9, type=int)
     add.add_argument("--minute", default=15, type=int)
     add.add_argument("--days", default=30, type=int)

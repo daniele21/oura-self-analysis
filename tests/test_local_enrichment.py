@@ -66,7 +66,7 @@ class TestLocalEnrichment(unittest.TestCase):
         self.add("daily_sleep", current.isoformat(), score=90)
         row = enrich.enrich_window(self.db, 1, today=current)[0]
         self.assertEqual(row["sleep_score_vs_prev28"], 10)
-        self.assertIsNone(row["sleep_score_avg7"])
+        self.assertEqual(row["sleep_score_avg7"], 83.3)
 
     def test_missing_days_not_filled_with_zeros(self):
         self.add("daily_activity", "2026-10-28", steps=100, score=63)

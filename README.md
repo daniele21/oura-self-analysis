@@ -56,6 +56,7 @@ Dates use YYYY-MM-DD; the optional \`--end\` is exclusive. Heart-rate boundaries
 - **Port 8989 in use:** close the application occupying the port before logging in.
 - **401 or refresh failure:** rerun \`login\`.
 - **403 or empty data:** check Oura membership (Gen3+), permissions and sync history.
+- **Older versions skip granted scopes:** Oura token responses can contain `extapi:daily` instead of `daily`. This client now normalizes the `extapi:` prefix when checking permissions. If your previous sync printed `scope 'daily' was not granted`, run `git pull --ff-only` and repeat `sync`. You do **not** need another OAuth login.
 - **Keychain errors:** run from a standard interactive macOS session.
 
 ## Privacy and limitations

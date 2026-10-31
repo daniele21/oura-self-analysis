@@ -235,3 +235,62 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
   .insight-card {padding:18px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+
+/* Sleep Intelligence 2.0 — responsive weekly and nightly views */
+.sleep-week-card .training-big {font-size:36px;margin-top:16px}
+.sleep-week-facts {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:22px}
+.sleep-week-fact {display:flex;flex-direction:column;gap:3px;padding:12px 13px;border-radius:12px;background:var(--surface-2)}
+.sleep-week-fact span {color:var(--muted);font-size:11px}
+.sleep-week-fact strong {font-size:15px;letter-spacing:-.2px;font-weight:730}
+.sleep-week-history {display:grid;gap:14px}
+.sleep-history-row {display:grid;grid-template-columns:minmax(95px,140px) 1fr auto;align-items:center;gap:12px;font-size:11px;color:var(--muted)}
+.sleep-history-row strong {font-size:13px;color:var(--text);white-space:nowrap}
+.sleep-history-row .progress-track {margin:0;height:7px}
+.sleep-date-picker {display:flex;align-items:center;gap:12px;margin:15px 0}
+.sleep-date-picker label {font-size:12px;color:var(--muted);font-weight:700}
+.sleep-select {border:1px solid var(--stroke);border-radius:10px;background:var(--surface-2);color:var(--text);padding:10px 14px;min-width:180px;max-width:100%;font:inherit;font-size:12px}
+.sleep-night-rail {display:flex;gap:9px;overflow-x:auto;padding:4px 2px 14px;margin-bottom:12px;scrollbar-width:thin;scrollbar-color:#36544d transparent}
+.sleep-night-btn {flex:0 0 auto;min-width:118px;border:1px solid var(--stroke);border-radius:14px;padding:12px 13px;background:var(--surface);text-align:left;display:grid;gap:4px}
+.sleep-night-btn span {font-size:11px;color:var(--muted)}
+.sleep-night-btn strong {font-size:19px;letter-spacing:-.6px;font-weight:730}
+.sleep-night-btn small {font-size:10px;color:var(--dim)}
+.sleep-night-btn.selected {border-color:var(--mint-strong);background:#203c35}
+.sleep-night-btn.selected span,.sleep-night-btn.selected small {color:#a6ddca}
+.sleep-night-detail {display:grid;grid-template-columns:minmax(0,1.1fr) minmax(250px,.9fr);gap:15px}
+.sleep-big-duration {font-size:clamp(35px,4.8vw,48px);font-weight:760;line-height:1.1;letter-spacing:-1.3px;margin:20px 0 8px}
+.sleep-night-measures {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:25px}
+.sleep-night-measure {padding:12px;border-radius:11px;background:var(--surface-2);display:grid;gap:5px;min-width:0}
+.sleep-night-measure span {color:var(--muted);font-size:11px}
+.sleep-night-measure strong {font-size:14px;letter-spacing:-.2px}
+.sleep-stage-item {margin-top:23px}
+.sleep-stage-header {display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px}
+.sleep-stage-header span {color:var(--muted)}
+.sleep-stage-header strong {font-size:13px}
+.sleep-stage-track {height:9px;width:100%;margin-top:9px;border-radius:10px;background:#263840;overflow:hidden}
+.sleep-stage-fill {height:100%;border-radius:10px;background:var(--mint-strong)}
+.sleep-stage-fill.deep {background:#6d9be2}
+.sleep-stage-fill.rem {background:#b69bf0}
+.sleep-stage-fill.light {background:#88d5bd}
+.sleep-stage-panel .data-quality-strip {margin-top:24px}
+@media(max-width:980px){
+  .sleep-night-detail {grid-template-columns:1fr}
+}
+@media(max-width:800px){
+  .bottom-nav {padding-inline:5px;gap:0}
+  .mobile-nav-btn {padding:5px 1px 3px;font-size:9px;min-width:0}
+  .sleep-week-facts {gap:8px}
+}
+@media(max-width:490px){
+  .sleep-date-picker {align-items:flex-start;flex-direction:column;gap:6px}
+  .sleep-select {width:100%}
+  .sleep-week-facts {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sleep-history-row {grid-template-columns:90px 1fr auto;gap:7px}
+  .sleep-week-fact strong {font-size:13px}
+  .sleep-night-measures {gap:7px}
+  .sleep-night-measure {padding:11px 10px}
+  .sleep-night-measure strong {font-size:12px}
+  .sleep-week-card .training-big {font-size:31px}
+  .feature-table {font-size:10px}
+  .feature-table th,.feature-table td {padding-inline:2px}
+}

@@ -109,7 +109,7 @@ class TestExerciseRecovery(unittest.TestCase):
         self.assertEqual(result["outcomes"][0]["hrv_ms_delta_median"],None)
         self.assertEqual(result["observed_outcomes"][0]["hrv_ms_delta_median"],0)
         self.assertEqual(result["quality"],"observational-overlap")
-        self.assertIn("sovrapposizioni", er.recovery_insights(result)[0]["summary"])
+        self.assertIn("allenamenti ravvicinati", er.recovery_insights(result)[0]["summary"])
 
     def test_recent_immature_event_and_old_boundary_are_excluded(self):
         for back in (1, 59):

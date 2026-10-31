@@ -94,6 +94,23 @@ class TestHealthAnalytics(unittest.TestCase):
         self.assertGreaterEqual(training[0]["measurements"]["n_other"], 4)
         self.assertIn("Non controlla intensità", " ".join(training[0]["limitations"]))
 
+    def test_7_day_vs_previous28_windows_do_not_overlap(self):
+        self.seed(60)
+        # Latest 7 nights differ, while the previous 28 (days 7..34 ago)
+        # remain at the older baseline value 50 ms.
+        for back in range(7):
+            d = self.day - timedelta(days=back)
+            self.store("sleep", d, type="long_sleep",
+                       total_sleep_duration=7*3600, average_hrv=60,
+                       lowest_heart_rate=49,
+                       bedtime_start="2026-10-29T23:30:00+02:00",
+                       bedtime_end="2026-10-30T07:00:00+02:00")
+        rows, _ = health.analyze(self.path, 30, today=self.day)
+        newest = rows[-1]
+        self.assertEqual(newest["hrv_median_7d"], 60)
+        self.assertEqual(newest["hrv_median_previous_28d"], 50)
+        self.assertEqual(newest["hrv_change_pct"], 20.0)
+
     def test_training_not_inferred_if_no_records(self):
         self.seed(35)
         rows, report = health.analyze(self.path, 30, today=self.day)

@@ -89,6 +89,15 @@ class TestPrivateDashboard(unittest.TestCase):
         self.assertNotIn("payload", payload["records"][-1])
         self.assertNotIn("access_token", json.dumps(payload))
         self.assertEqual(payload["range"]["days"], 30)
+        recovery = payload["exercise_recovery"]
+        self.assertIsInstance(recovery, dict)
+        self.assertEqual(len(recovery["outcomes"]), 3)
+        self.assertEqual(len(recovery["observed_outcomes"]), 3)
+        self.assertEqual(recovery["method"], "recorded-workout-isolated-wake-day-lag")
+        self.assertIn("workout_minutes_recorded", payload["records"][-1])
+        self.assertNotIn("record_id", json.dumps(recovery))
+        self.assertNotIn("start_datetime", json.dumps(recovery))
+        self.assertNotIn("end_datetime", json.dumps(recovery))
 
     def test_90_day_range_has_honest_coverage(self):
         self.seed(days=25)

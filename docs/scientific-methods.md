@@ -1,6 +1,6 @@
 # Metodologia scientifica — Oura Self-Analysis MVP
 
-**Versione:** 1.2 — 31 ottobre 2026. **Ambito:** statistiche personali descrittive, non diagnosi e non decisioni cliniche.
+**Versione:** 1.3 — 31 ottobre 2026. **Ambito:** statistiche personali descrittive, non diagnosi e non decisioni cliniche.
 
 ## Obiettivo
 
@@ -17,6 +17,47 @@ L'enrichment si esegue **localmente sul Mac**. La pubblicazione su Drive è faco
 **Scelta temporale:** l'orario è trasformato in minuti rispetto a mezzogiorno locale per gestire il passaggio dalle 23:50 alle 00:10. Si conserva l'offset del timestamp. Orari senza timezone non contribuiscono alla regolarità. Viaggi, turni e sonno diurno possono invalidare il proxy.
 
 **Limiti:** la deviazione standard dell'ora di coricamento **non è** il *Sleep Regularity Index* usato negli studi prospettici, che richiede una serie sonno-veglia a risoluzione più elevata. Non etichettare una notte come "scarsa" sulla sola base delle fasi REM/profonda stimate.
+
+## 1b. Sleep Intelligence 2.0 — tre livelli di lettura (schema 1.3)
+
+Le elaborazioni di sleep intelligence sono deterministiche, locali e non diagnostiche. L'obiettivo è separare **cambiamenti osservati** da possibili interpretazioni cliniche non giustificate.
+
+### Dati e scelta della sessione
+
+- Oura API V2 collection sleep, usando esclusivamente **type=long_sleep** come sessione principale, associata al **giorno di risveglio** del campo day. Record di tipo rest/short sleep non sono sostituiti automaticamente a un sonno notturno.
+- Campi disponibili per la singola notte: total_sleep_duration, time_in_bed, efficiency, latency, awake_time, deep_sleep_duration, rem_sleep_duration, light_sleep_duration, average_hrv, lowest_heart_rate, average_heart_rate, average_breath, restless_periods, bedtime_start e bedtime_end, oltre al punteggio daily_sleep.score.
+- Le durate espresse in secondi sono convertite in minuti. Valori mancanti o inverosimili non diventano zero. Orari privi di timezone non contribuiscono ai confronti su orari; il midpoint deriva dall'intervallo reale dei due timestamp quando entrambi sono attendibili.
+- I tempi REM, profondo e leggero **non vengono rinormalizzati** artificialmente a sommare 100%. Se la differenza fra somma delle fasi e durata totale supera max(5 minuti, 2% della durata), viene mostrato il flag phase_totals_do_not_match_sleep.
+- awake_time è etichettato **tempo sveglio stimato**; non viene attribuito automaticamente tutto al Wake After Sleep Onset (WASO) e restless_periods non viene etichettato come numero certo di risvegli.
+
+### 1. Andamento settimanale
+
+**Settimana recente** = ultimi sette giorni di calendario, inclusa la data del report. **Riferimento** = i sette giorni immediatamente precedenti; **nessuna sovrapposizione**. La UI etichetta esplicitamente le date, perché i periodi **non coincidono necessariamente con lunedì–domenica**.
+
+Per ciascuna finestra con almeno **4/7 notti principali con durata disponibile**, calcoliamo medie osservate di durata, efficienza, latenza, tempo sveglio e score, più deviazione standard della durata. Ogni metrica ha anche il suo numero di dati validi: se è inferiore a 4, la relativa media resta nulla. Il confronto tra settimane viene calcolato solo se entrambe superano le soglie minime; sono requisiti di copertura ingegneristici, non soglie cliniche.
+
+L'orario di addormentamento e del risveglio è sintetizzato con una **deviazione standard circolare in minuti**, adatta agli orari distribuiti vicino alla mezzanotte; è un proxy circadiano e **non** lo Sleep Regularity Index (SRI) della letteratura, che richiede dati sonno/veglia a granularità temporale maggiore.
+
+### 2. Confronto di ogni giorno
+
+Per ogni notte principale del periodo visualizzato calcoliamo:
+- **Delta giorno precedente:** misura della notte D meno la misura del **giorno di risveglio D−1 esatto**. Una notte mancante non è sostituita dalla più vicina disponibile.
+- **Delta vs sette precedenti:** misura della notte D meno **media delle notti osservate in D−7…D−1**, purché ne siano presenti almeno 4 per quella specifica metrica. Il giorno D non entra mai nella propria baseline.
+- Confronti disponibili per durata, efficienza, latenza, tempo sveglio, score, REM e profondo. Il delta efficienza è espresso in **punti percentuali**, non variazione percentuale relativa.
+
+Nessun delta giornaliero prova un miglioramento o peggioramento clinico, soprattutto per la suddivisione delle fasi.
+
+### 3. Dettaglio di una singola notte
+
+Il selettore permette di scegliere una sessione principale all'interno dei 7/30/90 giorni visualizzati. Il dettaglio mostra in modo navigabile sonno totale, tempo a letto, orari locali, midpoint, efficienza, latenza, tempo sveglio, sonno leggero/REM/profondo, HRV, FC minima/media, respirazione e irrequietezza **soltanto quando questi campi sono presenti**. Le fasi sono frazioni delle durate fornite dal wearable e possono non sommare esattamente al totale.
+
+### Evidenze e interpretazione
+
+- **Svensson et al. (2024), Sleep Medicine 115:251–263**, https://doi.org/10.1016/j.sleep.2024.01.020: validazione Oura Gen3 con PSG in 96 persone; buona concordanza per metriche globali, maggiore incertezza nelle fasi e nella rilevazione della veglia.
+- **Windred et al. (2024), Sleep**, https://doi.org/10.1093/sleep/zsad253: coorte prospettica sulla regolarità sonno-veglia; risultati osservazionali, non valida il nostro proxy di orario né fornisce rischi individuali.
+- **Oura API V2**, https://cloud.ouraring.com/v2/docs: definizione campi e disponibilità API.
+
+Le due osservazioni narrative weekly e latest night contengono misure, numerosità, alternative e limiti. Il modello evita diagnostica, promesse di causalità e falsi indicatori di sleep debt.
 
 ## 2. Autonomic Recovery
 

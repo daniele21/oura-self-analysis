@@ -590,7 +590,7 @@ function sleepDaily(data){
    ["Sveglio stimato",night.awake_minutes,"min"],
    ["Tempo a letto",night.time_in_bed_minutes,"min"],
    ["Sleep Score",night.sleep_score,"/100"],
-   ["Risvegli/movimenti",night.restless_periods,"stima Oura"],
+   ["Periodi di irrequietezza",night.restless_periods,"stima Oura"],
    ["HRV notturna",night.hrv_ms,"ms"],
    ["FC minima",night.heart_rate_min_bpm,"bpm"],
    ["FC media",night.heart_rate_average_bpm,"bpm"],

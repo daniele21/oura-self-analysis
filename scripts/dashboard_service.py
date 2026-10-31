@@ -49,12 +49,46 @@ def ctl(*arguments, check=True):
                           capture_output=True, check=check)
 
 
+def activate_agent(configuration: dict, previous: dict | None) -> None:
+    """Idempotently refresh an existing LaunchAgent.
+
+    A loaded service with unchanged command can be kickstarted without a
+    fragile bootout/bootstrap race. Reconfigure only when arguments differ.
+    """
+    target = "gui/" + str(os.getuid())
+    service = target + "/" + LABEL
+    loaded = ctl("print", service, check=False).returncode == 0
+    if loaded and previous and previous.get("ProgramArguments") == configuration["ProgramArguments"]:
+        ctl("kickstart", "-k", service)
+        return
+    ctl("bootout", service, check=False)
+    for _ in range(8):
+        outcome = ctl("bootstrap", target, str(PLIST), check=False)
+        if outcome.returncode == 0:
+            ctl("kickstart", "-k", service)
+            return
+        # launchd may still see the previous service after bootout; if the
+        # service is loaded despite a bootstrap race, restart it instead.
+        if ctl("print", service, check=False).returncode == 0:
+            ctl("kickstart", "-k", service)
+            return
+        time.sleep(0.25)
+    raise RuntimeError("Could not register the dashboard LaunchAgent after bounded retries.")
+
+
 def install(port: int):
     if sys.platform != "darwin":
         raise RuntimeError("LaunchAgents require macOS.")
     configuration = spec(Path(sys.executable), port=port)
     APP_LOGS.mkdir(parents=True, exist_ok=True, mode=0o700)
     PLIST.parent.mkdir(parents=True, exist_ok=True)
+    previous = None
+    if PLIST.is_file():
+        try:
+            with PLIST.open("rb") as old:
+                previous = plistlib.load(old)
+        except (OSError, ValueError, TypeError):
+            previous = None
     fd, temp = tempfile.mkstemp(prefix=".oura-dashboard-", dir=PLIST.parent)
     try:
         os.fchmod(fd, 0o600)
@@ -63,15 +97,11 @@ def install(port: int):
         os.replace(temp, PLIST)
     finally:
         Path(temp).unlink(missing_ok=True)
-    target = "gui/" + str(os.getuid())
-    ctl("bootout", target + "/" + LABEL, check=False)
     try:
-        ctl("bootstrap", target, str(PLIST))
-        ctl("kickstart", "-k", target + "/" + LABEL)
+        activate_agent(configuration, previous)
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(
-            "The LaunchAgent was saved but could not be activated: " +
-            (exc.stderr or "").strip()[-300:]
+            "The LaunchAgent was saved but could not be activated (launchctl failed)."
         ) from exc
     # Give launchd time to start it, but check only local shell/health-free HTML.
     success = False

@@ -356,6 +356,8 @@ def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[l
         history, _ = primary_features(path, days=35, today=today)
     from longitudinal_insights import SOURCES as LONGITUDINAL_SOURCES, evaluate
     insights = make_insights(rows, meta)
+    from sleep_intelligence import explain as explain_sleep
+    insights.extend(explain_sleep(sleep_report))
     insights.extend(evaluate(history, meta["window_end"]))
     # Exercise event curves use more days than the selected 7-day view, but
     # expose only aggregate curves / coverage, never raw workout event records.

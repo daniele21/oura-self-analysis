@@ -110,6 +110,18 @@ The script will upload `daily_enriched.csv`, `health_features.csv`, `health_insi
 
 **Backfill:** for 30 days of health features and a complete earlier non-overlapping 28-day baseline even for the earliest reported day, import **65 days** once with `oura_self_analysis.py sync --days 65 --collections daily_sleep,sleep,daily_readiness,daily_activity,workout`. Existing OAuth authorization and Keychain tokens can be reused.
 
+### Sleep Intelligence 2.0 (v1.3)
+
+The **Sonno** tab offers three linked views, driven by real, local Oura API V2 sleep data:
+
+1. **Weekly overview:** trailing seven calendar nights vs the preceding seven, including means for duration, efficiency, awake time, latency and proprietary Sleep Score, plus dispersion of duration and circular clock-time regularity. Each period displays its actual coverage. A week needs 4 valid nights for means and two such weeks for comparisons.
+2. **Daily navigation:** choose any main sleep night in the selected 7/30/90-day window. Compare each metric to the **exact previous calendar day's** sleep and to the **average of the seven previous days**, excluding the selected night. Missing previous-day data are unknown, not replaced by an earlier observation.
+3. **Night detail:** overnight duration, bedtime/wake time and midpoint, time in bed, efficiency, latency, awake minutes, restless periods, estimated REM/deep/light sleep proportions, HRV, minimum/average heart rate and respiration when reported by Oura.
+
+The dashboard includes new explainable **weekly** and **latest-night** insight cards with evidence, sample sizes and limitations. The enrichment opt-in also adds stage durations, awake minutes and other measured daily features to health_features.csv, and the new reports to health_insights.json. These stay local unless explicitly published with --include-health.
+
+Only sessions with **type=long_sleep** count as main overnight sleep: naps are not passed off as nights. Stage estimates are not diagnostic, and score changes are not medical judgments. Sleep phase sums are checked instead of artificially normalized. See [scientific methods](docs/scientific-methods.md) for definitions, study references and caveats.
+
 ### Exercise Recovery 2.0 (v1.2)
 
 Workout analysis now includes **recorded duration**, conservative activity groups, and Oura's reported `easy/moderate/hard` intensity. Unknown duration is **not** assumed to be zero, and Oura intensity is not session-RPE or a calibrated training-load score.

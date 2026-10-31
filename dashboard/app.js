@@ -386,9 +386,75 @@ function insightsView(data){
   a(wrap,list,hint("Le correlazioni non dimostrano causalità. Questa dashboard non genera diagnosi né allerte mediche.","shield"));
   return wrap;
 }
+function recoveryCurveCard(response){
+  const wrap=section();
+  a(wrap,heading("Risposta nei 3 risvegli successivi","D+1 · D+2 · D+3"));
+  if(!response || !response.recorded_workout_days){
+    a(wrap,empty("Nessun workout nello storico di analisi",
+      "Non ci sono eventi registrati nei giorni considerati. La registrazione dell'attività potrebbe essere incompleta.","dumbbell"));
+    return wrap;
+  }
+  const isolated=response.eligible_isolated_days>=response.min_sample_per_lag;
+  const observed=response.observed_event_days>=response.min_sample_per_lag;
+  const points=isolated?response.outcomes:response.observed_outcomes;
+  const p=panel();
+  const chosen=isolated?"Sessioni isolate (senza altri workout registrati ±3 giorni)":
+     "Tutte le giornate con workout (possibili sovrapposizioni)";
+  a(p,subhead("activity","Confronto rispetto al risveglio D",chosen));
+  const counts=e("p","training-caption",
+    response.recorded_workout_days+" giorni con workout · "+
+    response.observed_event_days+" con riferimento fisiologico · "+
+    response.eligible_isolated_days+" isolati · "+
+    response.excluded_overlapping_days+" con altri allenamenti vicini");
+  a(p,counts);
+  if(!isolated&&!observed){
+    a(p,hint("Per stimare una curva servono almeno quattro coppie di misurazioni per ritardo. Questo non implica recupero insufficiente.", "info"));
+  }else{
+    if(!isolated)a(p,hint("Analisi osservazionale con allenamenti ravvicinati: gli effetti delle sessioni possono sovrapporsi e non essere separabili.", "alert"));
+    const t=e("table","feature-table"),head=e("thead"),row=e("tr");
+    ["Differenza mediana da D","D+1","D+2","D+3"].forEach(v=>a(row,e("th","",v)));
+    a(head,row);a(t,head);
+    const body=e("tbody");
+    [["hrv_ms","HRV","ms"],["rhr_bpm","FC minima","bpm"],["sleep_minutes","Sonno","min"]].forEach(([key,label,unit])=>{
+      const row=e("tr");
+      a(row,e("td","",label));
+      points.forEach(point=>{
+        const v=point[key+"_delta_median"],n=point[key+"_n"];
+        const cell=e("td");
+        const str=num(v)===null?"—":(v>0?"+":"")+format(v,1)+" "+unit;
+        a(cell,e("strong","",str),e("small","training-n","n="+n));
+        a(row,cell);
+      });
+      a(body,row);
+    });
+    a(t,body);
+    a(p,t,e("p","coverage-description","D significa risveglio nel giorno dell'allenamento; D+1/2/3 sono i risvegli nei successivi giorni di calendario, non intervalli esatti in ore."));
+  }
+  const activities=response.by_activity||[];
+  const intensities=response.by_intensity||[];
+  if(activities.length || intensities.length){
+    const div=e("div","recovery-categories");
+    a(div,e("h4","","CONFRONTI ESPLORATIVI DISPONIBILI"));
+    const names={
+      cross_training:"Cross training / HIIT",racket_sport:"Sport con racchetta",
+      strength:"Forza",running:"Corsa",cycling:"Ciclismo",walking:"Camminata",
+      other:"Altre attività", easy:"Facile (Oura)",moderate:"Moderata (Oura)",hard:"Intensa (Oura)"
+    };
+    activities.forEach(item=>a(div,e("p","coverage-description",
+      (names[item.activity]||item.activity)+": "+item.observed_days+
+      " giornate registrate; confronti inclusivi di workout vicini.")));
+    intensities.forEach(item=>a(div,e("p","coverage-description",
+      (names[item.intensity]||item.intensity)+": "+item.observed_days+
+      " giornate con intensità registrata.")));
+    a(p,div);
+  }
+  a(p,hint("Non è un tempo di recupero validato né una prescrizione di allenamento. Oura usa intensità easy/moderate/hard: non sono valori RPE.", "shield"));
+  a(wrap,p);return wrap;
+}
 function trainingView(data){
   const wrap=e("div");
-  if(!data.meta.workout_history_available){
+  if(!data.meta.workout_history_available &&
+      !(data.exercise_recovery && data.exercise_recovery.recorded_workout_days)){
     a(wrap,empty("Dati workout non disponibili",
       "Non risultano allenamenti importati. Questo non significa assenza di attività: sincronizza la collezione workout per confrontare i giorni con sessioni registrate.","dumbbell"));
     return wrap;
@@ -402,6 +468,12 @@ function trainingView(data){
   a(two,subhead("calendar","Giorni con workout","Presenza di almeno una sessione registrata"),
     e("div","training-big",format(active)),e("div","training-caption","giornate su "+data.range.days));
   a(duo,one,two);a(wrap,duo);
+  const minutes=rows.map(x=>num(x.workout_minutes_recorded)).filter(x=>x!==null);
+  const sessionsWithDuration=rows.reduce((n,x)=>n+(num(x.workout_duration_sessions)||0),0);
+  if(minutes.length){
+    a(wrap,hint("Durata totale registrata: "+format(minutes.reduce((a,b)=>a+b,0),0)+
+      " minuti su "+sessionsWithDuration+" sessioni con orario valido. Le altre durate sono sconosciute.", "clock"));
+  }
   const history=section(),p=panel(),bars=e("div","workout-bars");
   const map=new Map(rows.map(r=>[r.day,r]));
   const days=daysArray(14,data.range.end);
@@ -415,7 +487,7 @@ function trainingView(data){
   });
   a(p,bars,e("p","coverage-description","L'assenza di un workout registrato non equivale necessariamente a riposo."));
   a(history,heading("Ultime due settimane","Sessioni registrate per giorno"),p);
-  a(wrap,history);
+  a(wrap,history,recoveryCurveCard(data.exercise_recovery));
   const sec=section(),trainingInsight=data.insights.find(x=>x.id==="exercise-following-day");
   a(sec,heading("Confronto HRV del giorno successivo"));
   if(trainingInsight)a(sec,insightCard(trainingInsight));

@@ -23,7 +23,8 @@ HOME = Path.home() / "Library" / "Application Support" / "OuraSelfAnalysis"
 
 def job_spec(uv: str, drive_dir: Path | None, hour: int = 9, minute: int = 15,
              days: int = 30, *, drive_remote: str | None = None,
-             drive_folder_id: str | None = None) -> dict:
+             drive_folder_id: str | None = None,
+             include_health: bool = False) -> dict:
     if not (0 <= hour <= 23 and 0 <= minute <= 59 and 1 <= days <= 90):
         raise ValueError("Invalid time or days (1-90).")
     if bool(drive_dir) == bool(drive_remote):
@@ -39,6 +40,7 @@ def job_spec(uv: str, drive_dir: Path | None, hour: int = 9, minute: int = 15,
         "ProgramArguments": [
             uv, "run", "--no-project", "--with", "keyring", "python",
             str(REPO / "local_enrichment.py"), "run", "--days", str(days),
+            *(["--include-health"] if include_health else []),
             *destination,
         ],
         "WorkingDirectory": str(REPO),
@@ -77,7 +79,8 @@ def install(args):
     if not (REPO / "local_enrichment.py").is_file():
         raise RuntimeError("Missing local_enrichment.py; run from the checked-out repository.")
     spec = job_spec(uv, folder, args.hour, args.minute, args.days,
-                    drive_remote=args.drive_remote, drive_folder_id=args.drive_folder_id)
+                    drive_remote=args.drive_remote, drive_folder_id=args.drive_folder_id,
+                    include_health=args.include_health)
     HOME.mkdir(parents=True, exist_ok=True, mode=0o700)
     PLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=".oura-launchd-", dir=PLIST_PATH.parent)
@@ -130,6 +133,8 @@ def main(argv=None):
     add.add_argument("--hour", default=9, type=int)
     add.add_argument("--minute", default=15, type=int)
     add.add_argument("--days", default=30, type=int)
+    add.add_argument("--include-health", action="store_true",
+                     help="Include local scientific analytics and enriched insights in Drive exports")
     commands.add_parser("uninstall")
     args = parser.parse_args(argv)
     try:

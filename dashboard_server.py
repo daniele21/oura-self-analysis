@@ -37,7 +37,7 @@ SUPPORTED_DAYS = (7, 30, 90)
 HEALTH_KEYS = tuple(health_analytics.FIELDS)
 DAILY_KEYS = (
     "activity_score", "readiness_score", "steps",
-    "deep_sleep_minutes", "rem_sleep_minutes", "temperature_deviation_c",
+    "temperature_deviation_c",
     "spo2_average_pct",
 )
 HTTP_HEADERS = {
@@ -98,6 +98,7 @@ def make_payload(db: Path, *, days: int = 30, today: date | None = None) -> dict
         "records": records,
         "insights": insights,
         "exercise_recovery": document.get("exercise_recovery"),
+        "sleep_intelligence": document.get("sleep_intelligence"),
         "privacy": "Dati locali. Statistiche descrittive, non valutazioni cliniche.",
     }
 

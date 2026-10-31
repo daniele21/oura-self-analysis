@@ -10,7 +10,7 @@ Requires macOS, Python 3.10+, [uv](https://docs.astral.sh/uv/) and Oura API acce
 git clone https://github.com/daniele21/oura-self-analysis.git
 cd oura-self-analysis
 uv run --no-project --with keyring python oura_self_analysis.py login
-uv run --no-project --with keyring python oura_self_analysis.py sync --days 60
+uv run --no-project --with keyring python oura_self_analysis.py sync --days 65
 uv run --no-project --with keyring python oura_self_analysis.py report
 ~~~
 
@@ -18,7 +18,7 @@ Enter your Oura Client ID and Secret only in the **local Terminal prompt**. OAut
 
     ~/Library/Application Support/OuraSelfAnalysis/oura.sqlite3
 
-The original collector handles scopes with Oura's extapi: prefix, pagination, token refresh, and idempotent upserts. The recommended **first import is 60 days**: this provides enough context for a 30-day export with a prior 28-day baseline.
+The original collector handles scopes with Oura's extapi: prefix, pagination, token refresh, and idempotent upserts. The recommended **first import is 65 days**: this covers a 30-day reporting window, with a separate 7-day recent median and non-overlapping previous 28-day baseline, even near the beginning of the report.
 
 ## 2. Enrich your data locally
 
@@ -90,7 +90,7 @@ uv run --no-project --with keyring python local_enrichment.py run --days 30 \
   --drive-dir "$HOME/Library/CloudStorage/GoogleDrive-YOUR_ACCOUNT/My Drive/Oura Self Analysis"
 ~~~
 
-For the daily pipeline, **--days 30** controls the export window, while **--sync-days 7** (the default) controls how many recent API days are refreshed. Run an initial 60-day import before enabling automation; occasionally repeat a 60-day sync if you want to reconcile older Oura corrections.
+For the daily pipeline, **--days 30** controls the export window, while **--sync-days 7** (the default) controls how many recent API days are refreshed. Run an initial 65-day import before enabling automation; occasionally repeat a 65-day sync if you want to reconcile older Oura corrections.
 
 The destination must already exist. Only daily_enriched.csv and manifest.json are copied; the raw SQLite database, detailed original records and secrets stay on the Mac. Google Drive for desktop handles the actual cloud sync, so **verify its menu bar status** and check the files online. A local copy success message does not prove upload to Google completed.
 

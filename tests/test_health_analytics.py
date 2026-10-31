@@ -137,7 +137,7 @@ class TestHealthAnalytics(unittest.TestCase):
         self.assertEqual(len(rows), 30)
         self.assertNotIn("heart_rate", rows[-1])
         self.assertIn("evidence_urls", payload["insights"][0])
-        self.assertEqual(json.loads(json_path.read_text())["schema_version"], "1.0")
+        self.assertEqual(json.loads(json_path.read_text())["schema_version"], "1.1")
         self.assertEqual(csv_path.stat().st_mode & 0o777, 0o600)
         self.assertEqual(json_path.stat().st_mode & 0o777, 0o600)
 
@@ -150,6 +150,21 @@ class TestHealthAnalytics(unittest.TestCase):
                        average_hrv=50, lowest_heart_rate=52)
         _, report = health.analyze(self.path, 30, today=self.day)
         self.assertNotIn("sleep-duration", [i["id"] for i in report["insights"]])
+
+    def test_seven_day_view_uses_prior_history_for_robust_insights(self):
+        self.seed(60)
+        rows, report = health.analyze(self.path, 7, today=self.day)
+        self.assertEqual(len(rows), 7)
+        self.assertEqual(report["metadata"]["calendar_days"], 7)
+        rich = [i for i in report["insights"]
+                if i["id"] == "personal-variability-hrv_ms"]
+        self.assertEqual(len(rich), 1)
+        self.assertEqual(rich[0]["quality"]["baseline_n"], 28)
+        self.assertEqual(rich[0]["quality"]["recent_n"], 7)
+        self.assertTrue(all("day" not in r or
+              r["day"] >= (self.day - timedelta(days=6)).isoformat()
+              for r in rows))
+        self.assertFalse(rich[0]["medical_alert"])
 
     def test_gaps_do_not_fabricate_observations(self):
         self.seed(8)

@@ -141,11 +141,12 @@ def primary_features(path: Path, days: int, today: date) -> tuple[list[dict], di
         from sleep_intelligence import choose_main
         main = choose_main(groups.get("sleep", [])) or {}
         # Day, not bedtime start, is Oura's waking day for the main sleep.
-        raw["sleep_minutes"] = plausible(raw["total_sleep_minutes"], 0, 1000)
+        from sleep_intelligence import minutes as sleep_minutes
+        raw["sleep_minutes"] = sleep_minutes(main.get("total_sleep_duration"))
         raw["sleep_score"] = plausible(raw["sleep_score"], 0, 100)
-        raw["sleep_efficiency_pct"] = plausible(raw["sleep_efficiency_pct"], 0, 100)
-        raw["hrv_ms"] = plausible(raw["average_hrv_ms"], 1, 250)
-        raw["rhr_bpm"] = plausible(raw["lowest_heart_rate_bpm"], 25, 150)
+        raw["sleep_efficiency_pct"] = plausible(main.get("efficiency"), 0, 100)
+        raw["hrv_ms"] = plausible(main.get("average_hrv"), 1, 250)
+        raw["rhr_bpm"] = plausible(main.get("lowest_heart_rate"), 25, 150)
         raw["respiratory_rate_per_min"] = plausible(main.get("average_breath"), 5, 40)
         latency = plausible(main.get("latency"), 0, 7200)
         raw["sleep_latency_minutes"] = rnd(latency / 60) if latency is not None else None

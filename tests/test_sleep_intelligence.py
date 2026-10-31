@@ -76,7 +76,6 @@ class TestSleepIntelligence(unittest.TestCase):
         self.assertEqual(comparison["day"],"2026-10-31")
         self.assertEqual(comparison["previous_day"],"2026-10-30")
         self.assertEqual(comparison["delta_vs_previous_day"]["sleep_minutes"],0)
-        self.assertEqual(comparison["delta_vs_previous7"]["sleep_minutes"],-60/7)
         # Rounded to two places: six 480-minute nights, one 420-minute night.
         self.assertAlmostEqual(comparison["delta_vs_previous7"]["sleep_minutes"],8.57)
         self.assertEqual(comparison["previous7_counts"]["sleep_minutes"],7)

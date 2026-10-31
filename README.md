@@ -110,6 +110,25 @@ The script will upload `daily_enriched.csv`, `health_features.csv`, `health_insi
 
 **Backfill:** for 30 days of health features and a complete earlier non-overlapping 28-day baseline even for the earliest reported day, import **65 days** once with `oura_self_analysis.py sync --days 65 --collections daily_sleep,sleep,daily_readiness,daily_activity,workout`. Existing OAuth authorization and Keychain tokens can be reused.
 
+### Deeper longitudinal insights (v1.1)
+
+The deterministic **`longitudinal_insights.py`** engine now adds:
+
+- **Personal robust baselines:** 7-day median versus the non-overlapping 28-day median, dispersion with scaled median absolute deviation (MAD), personal statistical reference bands, number of days outside a band and longest consecutive run.
+- **Stability and uncertainty:** HRV 7-day coefficient of variation (CV), leave-one-out directional sensitivity, and a reproducible exploratory 80% moving-block-bootstrap interval *only when all 35 days are present*.
+- **Joint physiology:** paired days when nighttime HRV is below and minimum nighttime heart rate is above their respective individual statistical reference bands; this is not a disease or overtraining detection tool.
+- **Reliability metadata:** actual sample sizes, coverage and explanatory limitations on each insight. Missing data suppresses unsupported estimates. If historical dispersion is zero, no anomaly score is calculated.
+
+The enhanced interpretation, data quality and alternative explanations are visible under **"Come è stato calcolato"** in the mobile dashboard. These exploratory statistical conventions **are not validated clinical thresholds**; see [detailed methods](docs/scientific-methods.md).
+
+Check the availability of Oura API fields without exposing physiological values or identifiers:
+
+~~~bash
+uv run --no-project --with keyring python scripts/audit_oura_coverage.py --days 65
+~~~
+
+It writes `~/Library/Application Support/OuraSelfAnalysis/enriched/coverage_audit.json` **locally with restrictive permissions**. This file contains only collection and field coverage counts; it is never automatically sent to Drive or GitHub.
+
 ## 3. Publish only the enriched files to Google Drive
 
 Use **Google Drive for desktop** on your Mac. This reuses Google's desktop app for login and upload; the Python scripts need no Google OAuth credentials.

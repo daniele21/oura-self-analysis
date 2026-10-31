@@ -19,7 +19,7 @@ jobs:
       - name: Run unit tests (offline, no Oura credentials)
         run: python -m unittest discover -s tests -v
       - name: Syntax check
-        run: python -m py_compile oura_self_analysis.py local_enrichment.py health_analytics.py drive_upload.py dashboard_server.py scripts/install_launch_agent.py
+        run: python -m py_compile oura_self_analysis.py local_enrichment.py health_analytics.py drive_upload.py dashboard_server.py scripts/dashboard_service.py scripts/install_launch_agent.py
       - name: Frontend JavaScript syntax checks
         run: |
           node --check dashboard/app.js

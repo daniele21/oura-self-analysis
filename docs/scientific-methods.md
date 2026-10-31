@@ -1,6 +1,6 @@
 # Metodologia scientifica — Oura Self-Analysis MVP
 
-**Versione:** 1.0 — 31 ottobre 2026. **Ambito:** statistiche personali descrittive, non diagnosi e non decisioni cliniche.
+**Versione:** 1.1 — 31 ottobre 2026. **Ambito:** statistiche personali descrittive, non diagnosi e non decisioni cliniche.
 
 ## Obiettivo
 
@@ -31,6 +31,53 @@ L'enrichment si esegue **localmente sul Mac**. La pubblicazione su Drive è faco
 I requisiti minimi per il numero di osservazioni sono scelte ingegneristiche conservative **non soglie validate clinicamente**. Le finestre non sovrapposte evitano che una fluttuazione recente entri anche nel riferimento. Le lacune non sono interpolate e i valori fisiologicamente inverosimili sono marcati mancanti, non zero.
 
 **Limiti:** HRV e frequenza cardiaca variano con malattia, alcol, sonno, ciclo di allenamento, farmaci, stress, viaggio, sensore e contesto. Non è appropriato tradurre il segno della variazione in un giudizio automatico di salute.
+
+## 2b. Longitudinal Insights — robustezza statistica (v1.1)
+
+Aggiunto \`longitudinal_insights.py\`: tre analisi di variabilità individuale (**HRV notturna, FC minima notturna, durata del sonno**) e una analisi congiunta HRV/FC, quando i dati lo consentono. Sono **descrittive, esplorative, non diagnostiche**.
+
+### Finestre e qualità
+
+- Ultimi **7 giorni di calendario** rispetto ai **precedenti 28** (escludendo esattamente i sette più recenti).
+- Minimo **5/7** osservazioni recenti e **14/28** nella baseline. Con meno osservazioni, l'analisi è **soppressa**, non sostituita con zeri o previsioni.
+- Qualità della copertura \`adequate\` con almeno **6/7** e **21/28** osservazioni, altrimenti \`limited\`. Questo livello descrive soltanto la **completezza del campione**, **non** la certezza dell'interpretazione scientifica.
+- Anche se la UI mostra solo 7 giorni, il motore usa sul Mac 35 giorni per la baseline: le righe giornaliere antecedenti al periodo richiesto **non vengono esportate** al browser.
+
+### Formule e robustezza
+
+- Centro storico: \`m = mediana(baseline)\`.
+- Dispersione: \`MAD = mediana(|x - m|)\`; \`sigma_robusta = 1,4826 × MAD\`, interpretazione appropriata principalmente per distribuzioni non eccessivamente asimmetriche.
+- Scostamento: \`delta = mediana(recente) - m\`; \`delta_% = 100 × delta / m\` quando \`m ≠ 0\`.
+- **Banda descrittiva personale**: \`[m - 2 × sigma_robusta, m + 2 × sigma_robusta]\`. Il moltiplicatore 2 è una **euristica ingegneristica e non una soglia clinica validata**; non è un test di significatività.
+- Frequenza delle giornate fuori dalla banda e **massima sequenza consecutiva** negli ultimi sette giorni, con lacune che interrompono le sequenze.
+- Coefficiente di variazione degli ultimi sette giorni: \`CV% = 100 × deviazione standard / media\`, quando la media è positiva.
+- **Leave-one-out:** quota di mediane, ottenute omettendo a turno una notte, che mantengono la direzione della differenza osservata. Misura di sensibilità descrittiva, non probabilità causale.
+- **Intervallo esplorativo bootstrap 80%:** 300 ripetizioni deterministiche con campionamento circolare a blocchi da **tre giorni**, separatamente per finestra recente e baseline. Esclusivamente con **35/35 giornate complete**; in caso di lacune, l'intervallo non è generato. Non rappresenta una probabilità di malattia né un intervallo di confidenza clinicamente validato.
+- Se la baseline ha dispersione nulla o quasi nulla, lo scostamento numerico resta visibile ma **non** viene calcolato uno score standardizzato né una banda per definire "insolito".
+
+### Co-movimento HRV/FC
+
+Quando esistono due baseline utilizzabili, contiamo i giorni con **HRV sotto la banda personale e FC minima sopra la propria banda** contemporaneamente. Il risultato è un conteggio associativo descrittivo, non uno score di infezione o di overtraining; la stima rimane fragile senza intensità di allenamento, alcol, farmaci, stress e condizioni ambientali.
+
+### Evidence gate e gestione dell'incertezza
+
+Ogni insight include: \`measurements\` riproducibili, \`quality\` con numerosità/copertura, \`interpretation\` contestualizzata, \`alternative_explanations\`, \`limitations\`, \`evidence_urls\`, \`medical_alert=false\` e \`evidence_class=exploratory\`.
+
+Un livello \`adequate\` indica **solo una copertura sufficiente al calcolo**, non una "alta confidenza" medica. Con molte analisi esplorative, le coincidenze casuali sono attese; non riportiamo p-value o causalità. I dettagli sono consultabili dalla dashboard mobile.
+
+**Evidenze:** AIS best-practice HRV (2023), [PDF](https://www.ais.gov.au/__data/assets/pdf_file/0013/1130260/HRV-BPG_FINAL.pdf); [Review HRV per adattamento e recupero (2025/2026)](https://pmc.ncbi.nlm.nih.gov/articles/PMC12787763/); [Regularità del sonno (Windred et al.)](https://doi.org/10.1093/sleep/zsad253). Queste fonti motivano la lettura longitudinale e prudente, **non** validano i nostri limiti di campione, bootstrap o le bande ±2MAD.
+
+### Audit di copertura sul Mac
+
+Per verificare quali **campi** sono stati importati:
+
+~~~bash
+uv run --no-project --with keyring python scripts/audit_oura_coverage.py --days 65
+~~~
+
+Il report privato \`coverage_audit.json\` viene scritto accanto agli altri file elaborati nella directory \`~/Library/Application Support/OuraSelfAnalysis/enriched/\`, con permessi restrittivi. Contiene **solo contatori aggregati di presenza campi/collezioni**, non HRV, frequenza cardiaca, date/ore di sonno dettagliate, identificativi, payload o token; non viene inviato a GitHub né al cloud. Non mostra mai i risultati numerici direttamente nei log dei runner.
+
+**Limite dell'audit:** la presenza di un campo non garantisce un segnale misurato correttamente e un totale di 35 record non garantisce 35 giorni consecutivi. Le metriche derivate mantengono controlli separati di sufficienza dei dati.
 
 ## 3. Exercise Recovery — fase esplorativa
 

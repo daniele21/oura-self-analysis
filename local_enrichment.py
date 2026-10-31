@@ -241,7 +241,8 @@ def export_local(db: Path, days: int = 30, *, today: date | None = None,
     return csv_path, manifest_path, manifest
 
 
-def publish_to_drive(csv_path: Path, manifest_path: Path, folder: Path) -> None:
+def publish_to_drive(csv_path: Path, manifest_path: Path, folder: Path,
+                     *, extras: tuple[Path, ...] = ()) -> None:
     """Publish into an explicitly selected Google Drive Desktop synced folder.
 
     An atomic rename reduces partially-written files. Drive Desktop then handles
@@ -255,7 +256,7 @@ def publish_to_drive(csv_path: Path, manifest_path: Path, folder: Path) -> None:
         raise oura.OuraError(f"Drive destination does not exist: {folder}")
     # Caller must explicitly select a folder within their *private* Drive.
     # We do not assume any arbitrary local directory is backed up automatically.
-    for source in (csv_path, manifest_path):
+    for source in (csv_path, *extras, manifest_path):
         destination = folder / source.name
         if destination.is_symlink():
             raise oura.OuraError("Refusing to overwrite a symlink in Drive.")
@@ -287,6 +288,8 @@ def build_parser() -> argparse.ArgumentParser:
                                      help="Configured Google Drive rclone remote, e.g. gdrive:")
             cmd.add_argument("--drive-folder-id",
                              help="Destination Google Drive folder ID (required with --drive-remote)")
+        cmd.add_argument("--include-health", action="store_true",
+                         help="Generate and optionally publish research-informed local health analytics")
         if command == "run":
             cmd.add_argument("--sync-days", type=int, default=7,
                              help="Fetch the most recent Oura records (default: 7 days)")
@@ -301,22 +304,44 @@ def main(argv: list[str] | None = None) -> int:
             if not 1 <= args.sync_days <= 90:
                 raise oura.OuraError("--sync-days must be between 1 and 90.")
             # Fail closed: don't upload a snapshot after a failed API sync.
+            collections = list(oura.DEFAULT_COLLECTIONS)
+            if args.include_health:
+                collections.append("workout")
             oura.sync(Namespace(days=args.sync_days, start=None, end=None,
-                                collections=",".join(oura.DEFAULT_COLLECTIONS)))
+                                collections=",".join(collections)))
         csv_path, manifest_path, meta = export_local(oura.DB_PATH, days=args.days)
         print(f"Local enrichment: {meta['row_count']} days -> {csv_path}")
+        extra_files: tuple[Path, ...] = ()
+        if args.include_health:
+            from health_analytics import export as export_health
+            feature_file, insight_file, health_report = export_health(
+                oura.DB_PATH, days=args.days, output_dir=csv_path.parent)
+            extra_files = (feature_file, insight_file)
+            # Checksums allow consumers to validate that all files were produced
+            # from a single successful local run before the manifest is published.
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["health_analysis"] = {
+                "schema_version": health_report["schema_version"],
+                "insights_count": len(health_report["insights"]),
+                "files": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                          for p in extra_files},
+            }
+            write_atomically(manifest_path,
+                lambda out: json.dump(manifest, out, indent=2, ensure_ascii=False))
+            print("Local health analytics: health_features.csv + health_insights.json")
         if args.command in ("publish", "run"):
             if args.drive_remote:
                 if not args.drive_folder_id:
                     raise oura.OuraError("--drive-folder-id is required with --drive-remote.")
                 publish_rclone(csv_path, manifest_path, remote=args.drive_remote,
-                               folder_id=args.drive_folder_id)
-                print("Verified 2 enriched files uploaded to the selected Google Drive folder.")
+                               folder_id=args.drive_folder_id, extras=extra_files)
+                print(f"Verified {2 + len(extra_files)} enriched files uploaded to Google Drive.")
             else:
                 if args.drive_folder_id:
                     raise oura.OuraError("--drive-folder-id is only used with --drive-remote.")
-                publish_to_drive(csv_path, manifest_path, args.drive_dir)
-                print(f"Copied 2 files to selected local folder: {args.drive_dir.expanduser()}")
+                publish_to_drive(csv_path, manifest_path, args.drive_dir,
+                                 extras=extra_files)
+                print(f"Copied {2 + len(extra_files)} files to selected local folder: {args.drive_dir.expanduser()}")
                 print("Cloud sync is handled by Google Drive Desktop; verify its sync status.")
         return 0
     except (oura.OuraError, sqlite3.Error, OSError) as exc:

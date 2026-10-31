@@ -1,0 +1,18 @@
+{
+  "name": "Oura Insights · Salute e benessere",
+  "short_name": "Oura Insights",
+  "description": "Dashboard privata e locale del sonno, recupero e allenamento.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c121a",
+  "theme_color": "#101722",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

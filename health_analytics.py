@@ -21,7 +21,7 @@ from local_enrichment import (
     rnd, write_atomically,
 )
 
-ANALYTICS_VERSION = "1.0"
+ANALYTICS_VERSION = "1.1"
 FEATURE_NAME = "health_features.csv"
 INSIGHTS_NAME = "health_insights.json"
 
@@ -325,14 +325,23 @@ def make_insights(rows: list[dict], meta: dict) -> list[dict]:
 def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[list[dict], dict]:
     today = today or date.today()
     rows, meta = primary_features(path, days=days, today=today)
+    # The UI can request 7 days while personal baseline analysis needs 35.
+    # We compute privately from earlier daily features and return ONLY the
+    # selected 7/30/90-day rows; previous daily health data is never emitted.
+    history = rows
+    if days < 35:
+        history, _ = primary_features(path, days=35, today=today)
+    from longitudinal_insights import SOURCES as LONGITUDINAL_SOURCES, evaluate
+    insights = make_insights(rows, meta)
+    insights.extend(evaluate(history, meta["window_end"]))
     return rows, {
         "schema_version": ANALYTICS_VERSION,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "privacy": "Private local Oura analytics; never publish to GitHub",
-        "method": "Deterministic descriptive analytics; no AI or clinical inference.",
+        "method": "Deterministic descriptive analytics; robust baselines and sensitivity checks. No AI or clinical inference.",
         "metadata": meta,
-        "insights": make_insights(rows, meta),
-        "scientific_references": SOURCES,
+        "insights": insights,
+        "scientific_references": {**SOURCES, **LONGITUDINAL_SOURCES},
     }
 
 

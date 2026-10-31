@@ -110,6 +110,16 @@ The script will upload `daily_enriched.csv`, `health_features.csv`, `health_insi
 
 **Backfill:** for 30 days of health features and a complete earlier non-overlapping 28-day baseline even for the earliest reported day, import **65 days** once with `oura_self_analysis.py sync --days 65 --collections daily_sleep,sleep,daily_readiness,daily_activity,workout`. Existing OAuth authorization and Keychain tokens can be reused.
 
+### Exercise Recovery 2.0 (v1.2)
+
+Workout analysis now includes **recorded duration**, conservative activity groups, and Oura's reported `easy/moderate/hard` intensity. Unknown duration is **not** assumed to be zero, and Oura intensity is not session-RPE or a calibrated training-load score.
+
+The Training view adds observational differences in **nightly HRV, minimum nighttime heart rate, and sleep duration** at the **next three wake-days D+1/D+2/D+3** compared with wake-day D. These are calendar-day lags, **not precisely 24/48/72 hours after exercise**.
+
+The engine reports both **isolated recorded sessions** (no other registered workout within ±3 days) and **all workout days** with overlap warnings, so frequent workouts can still be reviewed without pretending a clean causal experiment. A median at each lag requires at least 4 valid pairs. The dashboard never exposes Oura workout IDs, free-form workout labels or exact workout times.
+
+For more details and limitations, see [scientific-methods.md](docs/scientific-methods.md). No medical alerts, diagnosis, performance optimization guarantees or training prescriptions are generated.
+
 ### Deeper longitudinal insights (v1.1)
 
 The deterministic **`longitudinal_insights.py`** engine now adds:

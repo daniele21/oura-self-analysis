@@ -78,7 +78,8 @@ def make_payload(db: Path, *, days: int = 30, today: date | None = None) -> dict
     # Keep the original health analytics output's references/limitations.
     allowed_insight_keys = ("id", "title", "summary", "measurements",
                             "observation_window", "evidence_urls", "limitations",
-                            "evidence_class", "medical_alert")
+                            "evidence_class", "medical_alert", "quality",
+                            "interpretation", "alternative_explanations")
     insights = [
         {key: item.get(key) for key in allowed_insight_keys}
         for item in document.get("insights", [])

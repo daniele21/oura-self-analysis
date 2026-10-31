@@ -137,7 +137,7 @@ class TestHealthAnalytics(unittest.TestCase):
         self.assertEqual(len(rows), 30)
         self.assertNotIn("heart_rate", rows[-1])
         self.assertIn("evidence_urls", payload["insights"][0])
-        self.assertEqual(json.loads(json_path.read_text())["schema_version"], "1.2")
+        self.assertEqual(json.loads(json_path.read_text())["schema_version"], "1.3")
         self.assertEqual(csv_path.stat().st_mode & 0o777, 0o600)
         self.assertEqual(json_path.stat().st_mode & 0o777, 0o600)
 

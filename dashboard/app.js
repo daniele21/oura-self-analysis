@@ -20,7 +20,26 @@ const measureLabels = {
   next_day_hrv_without_workout_median_ms:"HRV altri giorni (ms)",
   difference_ms:"Differenza (ms)",n_post_training:"Notti dopo workout",n_other:"Notti di confronto",
   observed_days:"Giorni osservati",calendar_days:"Giorni nel periodo",
-  workout_history_available:"Storico allenamenti disponibile"
+  workout_history_available:"Storico allenamenti disponibile",
+  recent_median:"Mediana ultimi 7 giorni",
+  baseline_median:"Mediana dei 28 giorni precedenti",
+  absolute_change:"Differenza assoluta",
+  percentage_change:"Variazione percentuale",
+  baseline_mad:"MAD della baseline",
+  baseline_robust_sigma:"Dispersione robusta (σ)",
+  standardized_shift:"Scostamento / dispersione storica",
+  recent_cv_pct:"Variabilità degli ultimi 7 giorni (CV %)",
+  personal_band:"Banda statistica individuale",
+  days_outside_personal_band:"Giornate fuori banda (7 giorni)",
+  longest_consecutive_outside:"Massima sequenza consecutiva",
+  leave_one_out_direction_pct:"Coerenza leave-one-out (%)",
+  bootstrap_80_delta_interval:"Intervallo bootstrap esplorativo 80%",
+  paired_valid_n:"Notti con entrambi i segnali",
+  paired_outside_n:"Notti con deviazione congiunta",
+  hrv_personal_lower_ms:"HRV limite statistico inferiore (ms)",
+  rhr_personal_upper_bpm:"FC limite statistico superiore (bpm)",
+  recent_n:"Osservazioni recenti",baseline_n:"Osservazioni baseline",
+  recent_coverage_pct:"Copertura recente (%)",baseline_coverage_pct:"Copertura baseline (%)"
 };
 const metrics = [
   {key:"hrv_ms",label:"HRV",unit:"ms",tone:"mint",digits:0},
@@ -278,9 +297,17 @@ function safeUrl(x){
 }
 function kind(id){
   if(id.includes("sleep"))return ["SONNO","moon"];
-  if(id.includes("autonomic"))return ["RECUPERO","heart"];
+  if(id.includes("autonomic")||id.includes("hrv")||id.includes("rhr")||
+      id.includes("personal-variability"))return ["RECUPERO","heart"];
   if(id.includes("exercise"))return ["ALLENAMENTO","dumbbell"];
   return ["QUALITÀ DATI","shield"];
+}
+function presentMeasurement(value){
+  if(value===null||value===undefined)return "—";
+  if(typeof value==="boolean")return value?"Sì":"No";
+  if(Array.isArray(value))return value.map(v=>format(v,2)).join(" – ");
+  if(typeof value==="string")return value;
+  return format(value,2);
 }
 function insightCard(item){
   const box=e("article","card insight-card"),h=e("div","insight-header");
@@ -290,19 +317,46 @@ function insightCard(item){
   a(headingBox,e("p","insight-meta",group),e("h3","insight-title",item.title||"Osservazione"));
   a(h,tile,headingBox);
   a(box,h,e("p","insight-copy",item.summary||""));
+  if(item.quality){
+    const q=item.quality;
+    const label=q.level==="adequate"?"Copertura adeguata per un'analisi esplorativa":
+                q.level==="limited"?"Copertura parziale":"Dati insufficienti";
+    a(box,e("p","insight-reliability",label));
+  }
   const details=e("details","insight-expand"),summary=e("summary","","Come è stato calcolato");
   a(summary,icon("chevron"));a(details,summary);
   const content=e("div","insight-detail"),measurement=item.measurements||{};
+  if(item.interpretation){
+    const group=e("section");
+    a(group,e("h4","","COME INTERPRETARE IL RISULTATO"),e("p","insight-detail-text",item.interpretation));
+    a(content,group);
+  }
+  if(item.quality){
+    const group=e("section"),q=item.quality;
+    const coverage=(q.recent_n!==undefined && q.baseline_n!==undefined)?
+       "Copertura: "+q.recent_n+"/7 giorni recenti e "+q.baseline_n+
+       "/28 giorni di riferimento.":"Metodologia descrittiva.";
+    a(group,e("h4","","QUALITÀ DELL'EVIDENZA"),e("p","insight-detail-text",coverage));
+    if(q.method)a(group,e("p","insight-detail-text","Metodo: "+q.method+". Non è una validazione clinica."));
+    a(content,group);
+  }
   if(Object.keys(measurement).length){
     const groupEl=e("section"),list=e("div","measure-list");
     a(groupEl,e("h4","","DATI UTILIZZATI"));
     Object.entries(measurement).forEach(([name,value])=>{
+      if(["metric","unit","quality","limitations","recent_days","baseline_days"].includes(name))return;
       const r=e("div","measure");
       a(r,e("span","",measureLabels[name]||name.replaceAll("_"," ")),
-        e("strong","",typeof value==="boolean"?(value?"Sì":"No"):format(value,2)));
+        e("strong","",presentMeasurement(value)));
       a(list,r);
     });
     a(groupEl,list);a(content,groupEl);
+  }
+  if(Array.isArray(item.alternative_explanations)&&item.alternative_explanations.length){
+    const group=e("section"),items=e("ul");
+    a(group,e("h4","","ALTRE POSSIBILI SPIEGAZIONI"));
+    item.alternative_explanations.forEach(reason=>a(items,e("li","",reason)));
+    a(group,items);a(content,group);
   }
   if(Array.isArray(item.limitations)&&item.limitations.length){
     const g=e("section"),list=e("ul");

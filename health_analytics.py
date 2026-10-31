@@ -162,7 +162,7 @@ def primary_features(path: Path, days: int, today: date) -> tuple[list[dict], di
             "hrv_ms": b.get("hrv_ms"),
             "rhr_bpm": b.get("rhr_bpm"),
             "respiratory_rate_per_min": b.get("respiratory_rate_per_min"),
-            "training_sessions": training.get(key) if training_available else None,
+            "training_sessions": training.get(key, 0) if training_available else None,
             "prior_day_training": (training.get((current - timedelta(days=1)).isoformat(), 0) > 0
                                    if training_available else None),
         }

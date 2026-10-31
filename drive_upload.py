@@ -44,7 +44,8 @@ def execute(args: list[str]) -> str:
 
 
 def publish_rclone(csv_path: Path, manifest_path: Path,
-                   *, remote: str, folder_id: str) -> None:
+                   *, remote: str, folder_id: str,
+                   extras: tuple[Path, ...] = ()) -> None:
     """Upsert two files into the *exact* Drive folder specified by its ID.
 
     Write manifest last. Verify both remote MD5 hashes match the local files.
@@ -53,14 +54,19 @@ def publish_rclone(csv_path: Path, manifest_path: Path,
     validate_remote(remote, folder_id)
     if csv_path.name != FILES[0] or manifest_path.name != FILES[1]:
         raise OuraError("Unexpected enrichment filenames.")
-    for file in (csv_path, manifest_path):
+    if any(p.name not in ("health_features.csv", "health_insights.json") for p in extras):
+        raise OuraError("Unexpected optional health analysis filename.")
+    files = (csv_path, *extras, manifest_path)
+    if len({p.name for p in files}) != len(files):
+        raise OuraError("Duplicate file names in Drive upload.")
+    for file in files:
         if not file.is_file() or file.is_symlink():
             raise OuraError(f"Missing or unsafe local file: {file.name}")
 
     command = shutil.which("rclone")
     base = [command, "--drive-root-folder-id", folder_id]
 
-    for file in (csv_path, manifest_path):
+    for file in files:
         target = remote + file.name
         execute(base + ["copyto", "--retries", "3", str(file), target])
         md5 = hashlib.md5(file.read_bytes()).hexdigest()  # Transport integrity; not a security signature.

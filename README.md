@@ -35,6 +35,39 @@ The CSV has one row for each available day in the rolling 30-day window (configu
 
 **This is upsert/snapshot logic, not naive append.** Each run rewrites a single current CSV and manifest so corrected Oura records do not generate duplicate rows. No AI/LLM processing is performed.
 
+## 2b. Evidence-informed health insights (local only by default)
+
+Three deterministic analytics modules are now available:
+
+- **Sleep Intelligence:** main overnight sleep duration, latency, local bedtime regularity (14-day SD; *not* the validated Sleep Regularity Index) and 7-day sleep duration.
+- **Autonomic Recovery:** night-time HRV and minimum nightly heart rate; 7-day median compared with a **non-overlapping previous 28-day** baseline (minimum 5 and 14 observations respectively).
+- **Exercise Recovery:** counts of imported workouts and observational next-day HRV comparison after workout days, emitted only when there are at least 4 observations per group.
+
+Run locally without uploading extra files to Drive:
+
+~~~bash
+uv run --no-project --with keyring python health_analytics.py --days 30
+~~~
+
+This creates two additional **private local** artifacts:
+
+- `~/Library/Application Support/OuraSelfAnalysis/enriched/health_features.csv`
+- `~/Library/Application Support/OuraSelfAnalysis/enriched/health_insights.json`
+
+Every insight contains measurements, limitations and links to research. There are **no medical alerts, causal claims, AI models, predictions or disease classifications**. A missing workout history is marked unknown, not interpreted as no activity. See [scientific methodology](docs/scientific-methods.md) for exact definitions and study citations.
+
+To include these files with the usual enrichment and optionally upload them through Drive Desktop or rclone, add **`--include-health`**:
+
+~~~bash
+# Manually, from the Mac, after your first 65-day backfill:
+uv run --no-project --with keyring python local_enrichment.py run --days 30 \
+  --include-health --drive-dir "$DRIVE_DIR"
+~~~
+
+The script will upload `daily_enriched.csv`, `health_features.csv`, `health_insights.json`, then `manifest.json` after successful verification. The manifest contains file SHA-256 checksums. The normal two-file export remains unchanged unless you explicitly opt in.
+
+**Backfill:** for 30 days of health features and a complete earlier non-overlapping 28-day baseline even for the earliest reported day, import **65 days** once with `oura_self_analysis.py sync --days 65 --collections daily_sleep,sleep,daily_readiness,daily_activity,workout`. Existing OAuth authorization and Keychain tokens can be reused.
+
 ## 3. Publish only the enriched files to Google Drive
 
 Use **Google Drive for desktop** on your Mac. This reuses Google's desktop app for login and upload; the Python scripts need no Google OAuth credentials.
@@ -124,6 +157,15 @@ python3 scripts/install_launch_agent.py uninstall
 ~~~
 
 If the repository is moved, reinstall: the agent stores the absolute script path.
+
+For daily scientific enrichment, reinstall the LaunchAgent with the same existing destination and the extra opt-in flag:
+
+~~~bash
+python3 scripts/install_launch_agent.py install --drive-dir "$DRIVE_DIR" \
+  --hour 9 --minute 15 --days 30 --include-health
+~~~
+
+Only the local analytical outputs are exported; the raw SQLite database stays on the Mac. On Drive Desktop, confirmation of remote upload still depends on Google Drive's synchronization status.
 
 ## 5. Tests
 

@@ -2,6 +2,48 @@
 
 Personal Oura Ring data pipeline: **Oura API → local SQLite → local deterministic enrichment → optional Google Drive Desktop sync**. No cloud runtime, external AI, or credentials stored in this public repository.
 
+## Mobile dashboard — Oura Insights
+
+New: **responsive read-only web dashboard** with four sections (Oggi, Trend, Insight, Allenamenti), 7/30/90-day line charts, evidence-linked explanations, and missing-data visibility. It reads the *real local SQLite data* through a tightly limited Python HTTP API; it contains **no sample patient data**.
+
+### View on the Mac
+
+~~~bash
+cd ~/Projects/oura-self-analysis
+git pull --ff-only
+uv run --no-project python dashboard_server.py --port 8765
+~~~
+
+Open **http://127.0.0.1:8765** in the Mac browser. No extra Python packages or Google Drive mount are needed. The server listens **only on 127.0.0.1**, never on your LAN, and exposes just a small set of static assets and a read-only \`/api/dashboard?days=30\` JSON endpoint.
+
+The dashboard uses the Mac's existing \`~/Library/Application Support/OuraSelfAnalysis/oura.sqlite3\`. If there is no data it shows a helpful empty state instead of invented values. On each refresh, calculations are done locally from SQLite. This is independent of Google Drive synchronization and does **not** trigger the Oura API or write to SQLite.
+
+Data coverage is honest: a 90-day view does not fabricate earlier data when fewer days have been synchronized. An outdated Oura last-observation date is shown explicitly.
+
+### Keep it running without Terminal
+
+Once manual startup works, stop it with Ctrl+C, then:
+
+~~~bash
+uv run --no-project python scripts/dashboard_service.py install --port 8765
+~~~
+
+This installs a per-user macOS LaunchAgent to start the local web server at login and keep it running. Remove the service (without touching Oura data) with:
+
+~~~bash
+uv run --no-project python scripts/dashboard_service.py uninstall
+~~~
+
+Local service logs are private at \`~/Library/Application Support/OuraSelfAnalysis/dashboard-stdout.log\` and \`dashboard-stderr.log\`. If you move the repository, reinstall the agent.
+
+### Access from the phone (optional, not enabled by this change)
+
+For private access remotely, install [Tailscale](https://tailscale.com/) on your Mac and phone, and use [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve) to securely publish the localhost port **within your authorized tailnet**. Keep the application bound to localhost, and use Serve **not Funnel**; Funnel makes services publicly reachable. Tailnet access depends on your Tailscale account and ACLs. Do not expose the dashboard via open router ports or a public GitHub Pages site.
+
+The app includes a manifest, installable mobile icon, and a service worker that caches **only HTML/CSS/JS/icon**, never health API responses. When visited from a secure Tailscale HTTPS address, you can add it to your phone's Home screen.
+
+**Security & limitations:** There is no built-in login screen; Tailscale identity/permissions form the access boundary when viewing remotely. HTTP on localhost is for your trusted Mac user only. Dashboard API responses use \`Cache-Control: no-store\`, strict security headers and restricted paths. The browser app does not send analytics to third parties. Insights are descriptive and not clinical guidance. The mobile page is not an offline health-data viewer.
+
 ## 1. Connect and sync Oura
 
 Requires macOS, Python 3.10+, [uv](https://docs.astral.sh/uv/) and Oura API access. Configure the OAuth callback in the Oura portal as http://localhost:8989/callback.

@@ -1,6 +1,6 @@
 # Privacy Policy — Oura Self-Analysis
 
-**Last updated: 30 October 2026**
+**Last updated: 31 October 2026**
 
 ## Scope
 
@@ -16,13 +16,13 @@ Local enrichment produces daily scores, sleep-stage duration, heart rate/HRV, ac
 
 Original API records are stored on the owner's Mac in a local SQLite database outside this public repository. API client credentials, access tokens and refresh tokens are stored in **macOS Keychain**, not in the repository.
 
-The local enrichment exports a CSV and manifest in the Mac's application-support directory. The tool does not use external AI or analytics services, and does not upload raw SQLite records, API request logs or authentication credentials to Google Drive.
+The local enrichment exports a daily CSV and manifest in the Mac's application-support directory. The optional evidence-informed analytics module also produces a **health_features.csv** file with daily physiological aggregates and a **health_insights.json** file with descriptive observations and scientific references, computed entirely on the Mac. These two additional files remain local unless the owner explicitly uses the `--include-health` option when publishing to Drive. The tool does not use external AI or analytics services, and does not upload raw SQLite records, API request logs or authentication credentials to Google Drive.
 
 ## Optional Google Drive storage
 
-Google Drive integration is **off by default**. If the owner explicitly chooses a destination folder and runs the publish or automated-run command, the tool copies only the enriched daily CSV and its manifest into an **existing Google Drive for desktop** folder.
+Google Drive integration is **off by default**. If the owner explicitly chooses a destination folder and runs the publish or automated-run command, the tool copies the enriched daily CSV and its manifest to the selected private Drive destination (Google Drive for desktop or an individually authorized rclone remote). Only if `--include-health` is explicitly selected does it also copy the two additional analytical files.
 
-Google Drive for desktop then synchronizes those files to the owner's Google account, subject to Google's own privacy policies and the sharing settings of that account. This is cloud storage of personal health-related derivatives. **The current integration does not provide end-to-end encryption of the CSV.** The owner must ensure the destination folder remains private and must evaluate whether Google Drive meets their confidentiality requirements.
+Google Drive for desktop (or rclone, if configured) then synchronizes those files to the owner's Google account, subject to Google's own privacy policies and account sharing settings. This is cloud storage of personal health-related derivatives. **The current integration does not provide end-to-end encryption of the CSV.** The owner must ensure the destination folder remains private and must evaluate whether Google Drive meets their confidentiality requirements.
 
 ## Retention and deletion
 

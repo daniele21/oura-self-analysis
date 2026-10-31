@@ -1,6 +1,6 @@
 # Metodologia scientifica — Oura Self-Analysis MVP
 
-**Versione:** 1.1 — 31 ottobre 2026. **Ambito:** statistiche personali descrittive, non diagnosi e non decisioni cliniche.
+**Versione:** 1.2 — 31 ottobre 2026. **Ambito:** statistiche personali descrittive, non diagnosi e non decisioni cliniche.
 
 ## Obiettivo
 
@@ -89,6 +89,42 @@ Il report privato \`coverage_audit.json\` viene scritto accanto agli altri file 
 - Rapporto descrittivo delle mediane HRV, senza inferenze causali o prescrizioni sportive.
 
 **Limiti importanti:** giorni senza record non garantiscono che non sia stato svolto sport; intensità, durata, session-RPE, orari, tipo di allenamento, sonno e altre variabili confondenti non sono corretti in questa versione. Non chiamare la differenza "tempo di recupero".
+
+## 3b. Exercise Recovery 2.0 — risposta nei risvegli D+1, D+2, D+3
+
+**Versione dell'engine: 1.2**, analisi esplorativa. Questo modulo è una lettura osservazionale della fisiologia dopo un workout **registrato**: non valida né predice il recupero muscolare, atletico o clinico.
+
+### Schemi API e feature
+
+Dal record Oura V2 \`workout\` leggiamo esclusivamente i campi strutturati:
+
+- \`day\`, \`activity\`, \`intensity\`, \`start_datetime\`, \`end_datetime\`, \`source\`.
+- **Durata** = \`end_datetime - start_datetime\` tenendo conto dei fusi; valida solo con entrambi i timestamp timezone-aware, durata \`>0\` e non superiore a 24h. Eventi senza durata valida restano classificati come **durata sconosciuta**, mai 0.
+- **Intensità Oura** = \`easy/moderate/hard\` se disponibile. **Non è session-RPE**: non moltiplichiamo arbitrariamente la durata per questi livelli, né ne ricaviamo un \`training load\` pseudo-clinico.
+- **Tipologia** = gruppi conservativi (cross-training/HIIT, sport con racchetta, forza, corsa, bicicletta, camminata, altre attività). Eventi con attività non riconosciuta vanno in «altre attività», senza inventare CrossFit/Padel dalla \`label\` libera.
+- \`label\`, ID e orari esatti del workout **non sono esportati nella dashboard**. Salviamo riepiloghi giornalieri aggregati ed eventuali curve di mediana, non un feed di record grezzi.
+
+Il **giorno D** è il giorno di calendario Oura del workout; D+1, D+2 e D+3 sono i **giorni di risveglio** successivi. Non rappresentano esattamente 24/48/72 ore fisiche dall'ora di fine workout. La differenza riportata è: \`outcome al risveglio D+k − outcome al risveglio D\`, con \`k=1,2,3\`. Il risveglio D è un **riferimento di giornata**, non una baseline pre-workout verificata individualmente.
+
+Gli outcome sono HRV notturna, **FC minima notturna** e minuti di sonno. Per ogni metrica/lag mostriamo \`n\` di coppie valide e la loro differenza mediana solo con almeno **4** coppie. Se mancano dati fisiologici, non riempiamo con zeri o valori interpolati.
+
+### Eventi isolati vs sessioni sovrapposte
+
+- **Coorte isolata:** giorno D senza altri workout *registrati* nei 3 giorni prima o dopo. Gli eventi degli ultimi 3 giorni sono esclusi perché D+3 non è osservabile.
+- **Coorte osservazionale:** tutte le giornate con workout registrati per le quali esiste almeno una metrica al risveglio D; **include** allenamenti vicini. Serve per evitare che frequenze elevate di sport producano un report vuoto. È meno interpretabile.
+- La dashboard preferisce la coorte isolata se ha almeno quattro giornate; altrimenti, se ci sono almeno quattro eventi nella coorte osservazionale, mostra esplicitamente il **rischio di sovrapposizione**.
+- Le analisi per attività/intensità richiedono almeno quattro giornate in quella categoria e sono esplicitamente osservazionali.
+
+La presenza di **nessun record workout** non implica riposo. Gli sport non registrati restano possibili. Non c'è correzione di intensità reale, stress, dieta, qualità del sonno, orari, stagionalità, trend precedenti o altre variabili confondenti. La differenza osservazionale **non identifica causalità** né il «tempo di recupero». Con campioni ridotti, autocorrelazione e allenamenti ripetuti, non calcoliamo p-value o intervalli di confidenza fittizi.
+
+### Evidenze e interpretazione prudente
+
+- Oura V2 API workout schema: [documentazione Oura](https://cloud.ouraring.com/v2/docs).
+- Review narrativa HRV: [Monitoring Training Adaptation and Recovery Status in Athletes Using HRV](https://pmc.ncbi.nlm.nih.gov/articles/PMC12787763/), sottolinea la variabilità temporale e l'importanza di medie e CV.
+- [Guidelines for rigor and reproducibility of HRV within human cardiovascular research (2026)](https://doi.org/10.1152/ajpheart.00041.2026): la ricerca non sostiene l'equivalenza automatica wearable HRV = misura di recupero.
+- [Review/meta-analisi su allenamento intenso e HRV (2025)](https://doi.org/10.1007/s10286-024-01103-7) riguarda prevalentemente risposte nell'immediato post-esercizio; **non** valida la nostra curva notturna D+1/2/3.
+
+Queste fonti motivano il monitoraggio longitudinale e le cautele, non validano i requisiti minimi, l'isolamento ±3 giorni né gli effetti individuali stimati.
 
 ## 4. Data Quality e spiegabilità
 

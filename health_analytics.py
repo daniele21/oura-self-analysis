@@ -21,7 +21,7 @@ from local_enrichment import (
     rnd, write_atomically,
 )
 
-ANALYTICS_VERSION = "1.2"
+ANALYTICS_VERSION = "1.3"
 FEATURE_NAME = "health_features.csv"
 INSIGHTS_NAME = "health_insights.json"
 
@@ -35,6 +35,9 @@ SOURCES = {
 FIELDS = [
     "day", "sleep_score", "sleep_minutes", "sleep_efficiency_pct",
     "sleep_latency_minutes", "bedtime_local", "wake_local",
+    "deep_sleep_minutes", "rem_sleep_minutes", "light_sleep_minutes",
+    "awake_minutes", "time_in_bed_minutes", "sleep_midpoint_local",
+    "restless_periods", "sleep_phase_coverage",
     "bedtime_consistency_sd_minutes_14d", "sleep_minutes_avg_7d",
     "hrv_ms", "hrv_median_7d", "hrv_median_previous_28d",
     "hrv_change_pct", "rhr_bpm", "rhr_median_7d",
@@ -134,7 +137,9 @@ def primary_features(path: Path, days: int, today: date) -> tuple[list[dict], di
 
     for key, groups in records.items():
         raw = make_base(key, groups)
-        main = choose_sleep(groups.get("sleep", []))
+        # Prevent a nap or rest session from masquerading as the main night.
+        from sleep_intelligence import choose_main
+        main = choose_main(groups.get("sleep", [])) or {}
         # Day, not bedtime start, is Oura's waking day for the main sleep.
         raw["sleep_minutes"] = plausible(raw["total_sleep_minutes"], 0, 1000)
         raw["sleep_score"] = plausible(raw["sleep_score"], 0, 100)
@@ -332,6 +337,16 @@ def make_insights(rows: list[dict], meta: dict) -> list[dict]:
 def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[list[dict], dict]:
     today = today or date.today()
     rows, meta = primary_features(path, days=days, today=today)
+    from sleep_intelligence import build as build_sleep
+    sleep_report = build_sleep(path, days=days, today=today)
+    by_day = {night["day"]: night for night in sleep_report["nights"]}
+    for row in rows:
+        night = by_day.get(row["day"], {})
+        for key in ("deep_sleep_minutes", "rem_sleep_minutes", "light_sleep_minutes",
+                    "awake_minutes", "time_in_bed_minutes", "sleep_midpoint_local",
+                    "restless_periods"):
+            row[key] = night.get(key)
+        row["sleep_phase_coverage"] = night.get("phase_coverage")
     # The UI can request 7 days while personal baseline analysis needs 35.
     # We compute privately from earlier daily features and return ONLY the
     # selected 7/30/90-day rows; previous daily health data is never emitted.
@@ -360,6 +375,7 @@ def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[l
         "metadata": meta,
         "insights": insights,
         "exercise_recovery": exercise,
+        "sleep_intelligence": sleep_report,
         "scientific_references": {**SOURCES, **LONGITUDINAL_SOURCES},
     }
 

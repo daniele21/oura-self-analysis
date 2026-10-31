@@ -164,6 +164,95 @@ def compare_day(rows,day):
             "delta_vs_previous_day":day_delta,"delta_vs_previous7":week_delta}
 
 
+
+def explain(report:dict)->list[dict]:
+    """Narrative observations with measurements and quality, never medical claims."""
+    w=report["weekly"]
+    current,previous=w["recent"],w["previous"]
+    results=[]
+    diff=w["delta_recent_vs_previous"]["sleep_minutes"]
+    if diff is not None:
+        eff=w["delta_recent_vs_previous"]["sleep_efficiency_pct"]
+        latency=w["delta_recent_vs_previous"]["sleep_latency_minutes"]
+        summary=(
+            f"Durata media negli ultimi 7 giorni: {current['averages']['sleep_minutes']:.0f} minuti "
+            f"({diff:+.0f} minuti rispetto ai 7 precedenti). "
+        )
+        if eff is not None:
+            summary+=f"Efficienza media: {eff:+.1f} punti percentuali. "
+        if latency is not None:
+            summary+=f"Latenza media: {latency:+.1f} minuti. "
+        summary+="Le differenze non dimostrano un miglioramento o un peggioramento clinico."
+        results.append({
+            "id":"sleep-weekly-comparison",
+            "title":"Sonno: andamento degli ultimi sette giorni",
+            "summary":summary,
+            "observation_window":{"start":previous["start"],"end":current["end"]},
+            "measurements":{
+                "current_nights":current["available_nights"],
+                "previous_nights":previous["available_nights"],
+                "current_sleep_minutes_avg":current["averages"]["sleep_minutes"],
+                "previous_sleep_minutes_avg":previous["averages"]["sleep_minutes"],
+                "sleep_minutes_avg_delta":diff,
+                "sleep_efficiency_delta_pp":eff,
+                "sleep_latency_delta_minutes":latency,
+                "bedtime_sd_minutes":current["bedtime_clock_sd_minutes"],
+            },
+            "quality":{"level":"adequate" if min(current["available_nights"],previous["available_nights"])>=6 else "limited",
+                       "method":"two non-overlapping seven-calendar-day groups, 4+ nights each",
+                       "recent_n":current["available_nights"],
+                       "baseline_n":previous["available_nights"]},
+            "interpretation":"Confronto descrittivo di durata, efficienza e latenza; i segni delle differenze non sono giudizi di salute.",
+            "alternative_explanations":["Orari, lavoro e viaggi","Allenamenti","Eventuali notti non registrate"],
+            "limitations":["Campioni ridotti e possibili condizioni diverse fra settimane.",
+                           "Durata ed efficienza sono stime del wearable.",
+                           "La variabilità oraria non è uno Sleep Regularity Index validato."],
+            "evidence_urls":STUDIES,"evidence_class":"exploratory","medical_alert":False,
+        })
+    latest=report.get("latest_main_sleep_day")
+    if latest:
+        nights={n["day"]:n for n in report["nights"]}
+        comp=next((c for c in report["daily_comparisons"] if c["day"]==latest),None)
+        night=nights.get(latest)
+        if night and comp and night.get("sleep_minutes") is not None:
+            day_delta=comp["delta_vs_previous_day"]["sleep_minutes"]
+            week_delta=comp["delta_vs_previous7"]["sleep_minutes"]
+            statements=[f"Nell'ultima notte registrata ({latest}) sono stati stimati "
+                        f"{night['sleep_minutes']:.0f} minuti di sonno."]
+            if day_delta is not None:
+                statements.append(f"Rispetto alla notte precedente: {day_delta:+.0f} minuti.")
+            else:
+                statements.append("Il confronto con la notte precedente non è disponibile.")
+            if week_delta is not None:
+                statements.append(f"Rispetto alla media delle sette notti precedenti: {week_delta:+.0f} minuti.")
+            else:
+                statements.append("Il confronto con la settimana precedente ha dati insufficienti.")
+            results.append({
+                "id":"sleep-night-context",
+                "title":"Ultima notte: confronto giornaliero e settimanale",
+                "summary":" ".join(statements),
+                "observation_window":{"start":comp["prior7_start"],"end":latest},
+                "measurements":{
+                    "night_sleep_minutes":night["sleep_minutes"],
+                    "delta_vs_previous_day_minutes":day_delta,
+                    "delta_vs_previous7_minutes":week_delta,
+                    "previous7_n":comp["previous7_counts"]["sleep_minutes"],
+                    "efficiency_pct":night.get("sleep_efficiency_pct"),
+                    "latency_minutes":night.get("sleep_latency_minutes"),
+                },
+                "quality":{"level":"limited" if day_delta is None or week_delta is None else "adequate",
+                           "recent_n":1,
+                           "baseline_n":comp["previous7_counts"]["sleep_minutes"],
+                           "method":"same-calendar-night vs exact prior night and average of prior seven calendar days"},
+                "interpretation":"La notte precedente è un confronto singolo, sensibile alla variabilità naturale; serve leggere il trend su più notti.",
+                "alternative_explanations":["Orari della giornata","Stato di recupero e allenamento","Notti mancanti"],
+                "limitations":["La variabilità giornaliera può essere normale.",
+                               "I riferimenti non sono soglie cliniche né causalità.",
+                               "Fasi REM e profondo sono stime meno stabili."],
+                "evidence_urls":STUDIES,"evidence_class":"exploratory","medical_alert":False,
+            })
+    return results
+
 def build(db:Path,*,days:int=30,today:date|None=None)->dict:
     if not 7<=days<=90: raise ValueError("Sleep window must be 7-90 days.")
     today=today or date.today()

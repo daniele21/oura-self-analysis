@@ -88,7 +88,7 @@ def audit(db: Path, *, days: int = 65, today: date | None = None) -> dict:
             "recent_7_and_prior_28_possible_from_total_sleep_count":
                 usable_main_sleep >= 35,
             "minimum_eligible_hrv_records_observed": usable_main_sleep,
-            "workout_records_observed": summary["workout"]["record_count"],
+            "workout_records_observed": summary["workout"]["records_seen"],
         },
         "privacy": "Aggregate coverage only; private local report, not for GitHub artifacts.",
         "limitations": [

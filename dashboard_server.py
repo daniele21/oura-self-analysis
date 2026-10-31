@@ -97,6 +97,7 @@ def make_payload(db: Path, *, days: int = 30, today: date | None = None) -> dict
         },
         "records": records,
         "insights": insights,
+        "exercise_recovery": document.get("exercise_recovery"),
         "privacy": "Dati locali. Statistiche descrittive, non valutazioni cliniche.",
     }
 

@@ -8,6 +8,7 @@ import unittest
 
 import sleep_intelligence as sleep
 import health_analytics as health
+import local_enrichment
 import dashboard_server
 
 
@@ -100,6 +101,13 @@ class TestSleepIntelligence(unittest.TestCase):
         self.assertEqual(report["weekly"]["recent"]["available_nights"],0)
         self.assertIsNone(report["weekly"]["recent"]["averages"]["sleep_minutes"])
         self.assertIsNone(report["latest_main_sleep_day"])
+        features, document=health.analyze(self.db,days=7,today=self.today)
+        self.assertIsNone(features[-1]["sleep_minutes"])
+        self.assertIsNone(features[-1]["hrv_ms"])
+        self.assertIsNone(features[-1]["rhr_bpm"])
+        original=local_enrichment.enrich_window(self.db,days=7,today=self.today)
+        self.assertIsNone(original[-1]["total_sleep_minutes"])
+        self.assertFalse(any(i["id"]=="sleep-weekly-comparison" for i in document["insights"]))
 
     def test_missing_previous_day_not_replaced_by_previous_available_night(self):
         self.seed(14)
@@ -153,6 +161,11 @@ class TestSleepIntelligence(unittest.TestCase):
         self.assertNotIn("private-id",json.dumps(payload))
         self.assertNotIn("bedtime_start",json.dumps(report))
         self.assertEqual(payload["range"]["days"],7)
+        weekly=next(i for i in payload["insights"] if i["id"]=="sleep-weekly-comparison")
+        nightly=next(i for i in payload["insights"] if i["id"]=="sleep-night-context")
+        self.assertFalse(weekly["medical_alert"])
+        self.assertEqual(weekly["measurements"]["current_nights"],7)
+        self.assertEqual(nightly["measurements"]["previous7_n"],7)
 
 
 if __name__=="__main__":

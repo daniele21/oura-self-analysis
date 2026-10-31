@@ -75,9 +75,10 @@ def local_clock(iso: object) -> str | None:
 
 def observation(series: dict[str, dict], day: date, field: str, *,
                 days: int, include_today: bool, minimum: int,
-                aggregate: str = "median") -> tuple[float | None, int]:
+                aggregate: str = "median",
+                start_offset: int | None = None) -> tuple[float | None, int]:
     """Calendar-window aggregation; missing dates are never backfilled."""
-    offset = 0 if include_today else 1
+    offset = start_offset if start_offset is not None else (0 if include_today else 1)
     sample = [
         series.get((day - timedelta(days=i)).isoformat(), {}).get(field)
         for i in range(offset, days + offset)
@@ -117,8 +118,9 @@ def primary_features(path: Path, days: int, today: date) -> tuple[list[dict], di
     if not path.is_file():
         raise oura.OuraError("No Oura SQLite database; sync the ring first.")
     start = today - timedelta(days=days - 1)
-    # 28 preceding days are required for fair baseline comparison.
-    records = daily_records(path, start - timedelta(days=28), today)
+    # Baseline is 28 days BEFORE the most recent 7-day window: no overlap.
+    # 28 + 6 prior-day offsets ensure the oldest export day has full history.
+    records = daily_records(path, start - timedelta(days=34), today)
     training, training_available = training_by_day(
         path, start - timedelta(days=1), today)
     if not records:
@@ -170,7 +172,7 @@ def primary_features(path: Path, days: int, today: date) -> tuple[list[dict], di
             recent, _ = observation(base, current, metric, days=7, include_today=True,
                                      minimum=5)
             previous, _ = observation(base, current, metric, days=28, include_today=False,
-                                       minimum=14)
+                                       minimum=14, start_offset=7)
             feature[prefix + "_median_7d"] = rnd(recent) if recent is not None else None
             feature[prefix + "_median_previous_28d"] = rnd(previous) if previous is not None else None
             if recent is not None and previous is not None:
@@ -277,7 +279,7 @@ def make_insights(rows: list[dict], meta: dict) -> list[dict]:
             dates=dates, observations=measures,
             sources=[SOURCES["hr_validation"], SOURCES["hrv_quality"]],
             limitations=["HRV dipende anche da sonno, alcol, stress e carico sportivo.",
-                         "Baseline minima: 14 notti precedenti; recenti: almeno 5."]))
+                         "Baseline: 28 giorni antecedenti ai 7 recenti, con almeno 14 notti; recenti: almeno 5."]))
 
     if meta.get("workout_history_available"):
         # Compare next-day sleep HRV to preceding workout day, not same-day.

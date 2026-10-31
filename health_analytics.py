@@ -230,7 +230,9 @@ def insight(id: str, title: str, summary: str, *,
 
 def make_insights(rows: list[dict], meta: dict) -> list[dict]:
     dates = {"start": meta["window_start"], "end": meta["window_end"]}
-    recent_days = sorted(rows, key=lambda r: r["day"])[-7:]
+    # The last seven *calendar* days, not the last seven observed records.
+    cutoff = date.fromisoformat(meta["window_end"]) - timedelta(days=6)
+    recent_days = [r for r in rows if date.fromisoformat(r["day"]) >= cutoff]
     result = []
 
     sleep = [r["sleep_minutes"] for r in recent_days if r.get("sleep_minutes") is not None]
@@ -246,12 +248,14 @@ def make_insights(rows: list[dict], meta: dict) -> list[dict]:
                          "Le notti mancanti non sono conteggiate come zero."]))
 
     latest = sorted(rows, key=lambda r: r["day"])[-1]
+    latest_observation_day = latest["day"]
     sd = latest.get("bedtime_consistency_sd_minutes_14d")
     if sd is not None:
         result.append(insight(
             "sleep-regularity", "Regolarità dell'orario di coricamento",
-            f"Variabilità degli orari locali: deviazione standard {sd:.0f} minuti "
-            "sulle osservazioni disponibili negli ultimi 14 giorni.",
+            f"All'ultima osservazione disponibile ({latest_observation_day}): "
+            f"deviazione standard degli orari locali {sd:.0f} minuti "
+            "sulle 14 giornate precedenti.",
             dates=dates, observations={"bedtime_sd_minutes": sd},
             sources=[SOURCES["sleep_regular"], SOURCES["oura"]],
             limitations=["Proxy dell'orario, non Sleep Regularity Index validato.",
@@ -274,7 +278,8 @@ def make_insights(rows: list[dict], meta: dict) -> list[dict]:
             parts.append(f"FC minima notturna mediana: {rhr_diff:+.1f} bpm")
         result.append(insight(
             "autonomic-trends", "Trend fisiologici rispetto alla baseline",
-            "; ".join(parts) + " rispetto ai precedenti 28 giorni. "
+            f"Ultima osservazione {latest_observation_day}. " + "; ".join(parts) +
+            " rispetto alla finestra di 28 giorni precedente ai 7 recenti. "
             "Questi scostamenti da soli non indicano una patologia.",
             dates=dates, observations=measures,
             sources=[SOURCES["hr_validation"], SOURCES["hrv_quality"]],

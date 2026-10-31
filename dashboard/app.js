@@ -1,11 +1,12 @@
 /* Private Oura dashboard: all health data stays in memory and is never cached. */
 "use strict";
-const state = { tab:"today", days:30, metric:"hrv_ms", data:null, loading:false };
+const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, data:null, loading:false };
 const root = document.getElementById("view-root");
 const notice = document.getElementById("notice");
 const spinner = document.getElementById("load-state");
 const labels = {
   today:["La tua panoramica","Una lettura chiara dei segnali che contano davvero.","PANORAMICA PERSONALE","PANORAMICA"],
+  sleep:["Il tuo sonno","Dalla settimana alla singola notte: andamento, confronti e dettaglio.","SLEEP INTELLIGENCE","SONNO"],
   trends:["I tuoi trend","Osserva l'andamento nel tempo, senza dare peso a una sola notte.","LETTURA LONGITUDINALE","TREND"],
   insights:["Insight e contesto","Osservazioni con misure, limiti ed evidenze scientifiche.","EVIDENZE PERSONALI","INSIGHT"],
   training:["Allenamento e recupero","Cosa mostrano i dati dopo le giornate con attività.","MOVIMENTO E RECUPERO","ALLENAMENTI"]
@@ -451,6 +452,212 @@ function recoveryCurveCard(response){
   a(p,hint("Non è un tempo di recupero validato né una prescrizione di allenamento. Oura usa intensità easy/moderate/hard: non sono valori RPE.", "shield"));
   a(wrap,p);return wrap;
 }
+const SLEEP_LABELS={
+  sleep_minutes:"Sonno totale",sleep_efficiency_pct:"Efficienza",
+  sleep_latency_minutes:"Latenza",awake_minutes:"Tempo sveglio",
+  sleep_score:"Sleep Score",deep_sleep_minutes:"Sonno profondo",
+  rem_sleep_minutes:"Sonno REM",light_sleep_minutes:"Sonno leggero",
+  time_in_bed_minutes:"Tempo a letto"
+};
+const SLEEP_UNITS={
+  sleep_minutes:"min",sleep_efficiency_pct:"pp",sleep_latency_minutes:"min",
+  awake_minutes:"min",sleep_score:"pt",deep_sleep_minutes:"min",
+  rem_sleep_minutes:"min",light_sleep_minutes:"min"
+};
+function sleepDelta(v,unit){
+  return num(v)===null?"—":(v>0?"+":"")+format(v,0)+(unit?" "+unit:"");
+}
+function sleepWeekCard(title,summary){
+  const p=panel("sleep-week-card");
+  a(p,subhead("moon",title,shortDate(summary.start)+" – "+shortDate(summary.end)));
+  const average=summary.averages.sleep_minutes;
+  a(p,e("div","training-big",duration(average)),
+    e("div","training-caption","Durata media per notte, "+summary.available_nights+"/7 notti disponibili"));
+  const stats=e("div","sleep-week-facts");
+  [["Efficienza",summary.averages.sleep_efficiency_pct,"%"],
+   ["Variabilità durata",summary.duration_sd_minutes,"min"],
+   ["Regolarità orario",summary.bedtime_clock_sd_minutes,"min"],
+   ["Sleep Score",summary.averages.sleep_score,"/100"]].forEach(([label,value,unit])=>{
+     const cell=e("div","sleep-week-fact");
+     a(cell,e("span","",label),e("strong","",format(value,0)+(num(value)!==null?" "+unit:"")));
+     a(stats,cell);
+  });
+  a(p,stats);
+  if(!summary.sufficient)a(p,hint("Copertura insufficiente: servono almeno 4 notti valide su 7 per mostrare medie e confronti.","info"));
+  return p;
+}
+function sleepWeekly(data){
+  const sleep=data.sleep_intelligence;
+  const weekly=sleep.weekly;
+  const container=section();
+  a(container,heading("Come sta andando questa settimana","Ultimi 7 giorni contro i 7 precedenti"));
+  const grid=e("div","training-grid");
+  a(grid,sleepWeekCard("Ultimi 7 giorni",weekly.recent),
+    sleepWeekCard("Sette giorni precedenti",weekly.previous));
+  a(container,grid);
+  const comparison=panel("section-block");
+  a(comparison,subhead("trend","Cosa è cambiato","Confronto tra blocchi non sovrapposti di 7 giorni"));
+  const metrics=[
+    ["Durata media","sleep_minutes","min"],
+    ["Efficienza media","sleep_efficiency_pct","pp"],
+    ["Tempo sveglio","awake_minutes","min"],
+    ["Latenza di addormentamento","sleep_latency_minutes","min"],
+    ["Sleep Score","sleep_score","pt"]
+  ];
+  const table=e("table","feature-table"),head=e("thead"),tr=e("tr");
+  ["Indicatore","Prima","Adesso","Differenza"].forEach(x=>a(tr,e("th","",x)));
+  a(head,tr);a(table,head);
+  const body=e("tbody");
+  metrics.forEach(([title,key,unit])=>{
+    const row=e("tr");
+    const before=weekly.previous.averages[key],after=weekly.recent.averages[key];
+    const d=weekly.delta_recent_vs_previous[key];
+    a(row,e("td","",title),
+      e("td","",key==="sleep_minutes"?duration(before):format(before,0)),
+      e("td","",key==="sleep_minutes"?duration(after):format(after,0)),
+      e("td","",sleepDelta(d,unit)));
+    a(body,row);
+  });
+  a(table,body);
+  a(comparison,table);
+  const d=weekly.delta_recent_vs_previous.sleep_minutes;
+  if(num(d)!==null){
+    const text="La durata media del sonno negli ultimi sette giorni è "+
+      (d===0?"in linea":d>0?"aumentata":"diminuita")+
+      " di "+format(Math.abs(d),0)+" minuti rispetto ai sette precedenti. "+
+      "Il risultato descrive una variazione: non stabilisce da solo se il sonno sia stato migliore.";
+    a(comparison,hint(text,"info"));
+  }else a(comparison,hint("Non ci sono abbastanza notti per confrontare con affidabilità i due periodi. Nessun dato mancante è stato trattato come zero.","info"));
+  a(container,comparison);
+  const hist=weekly.history||[];
+  if(hist.length>2){
+    const sec=section(),p=panel();
+    a(sec,heading("Andamento dei periodi di 7 giorni","Cronologia dei blocchi settimanali"));
+    const bars=e("div","sleep-week-history");
+    hist.slice(0,8).forEach(w=>{
+      const cell=e("div","sleep-history-row");
+      const label=e("span","",shortDate(w.start)+" – "+shortDate(w.end));
+      const avg=w.averages.sleep_minutes;
+      const track=e("div","progress-track"),fill=e("div","progress-fill");
+      fill.style.width=(num(avg)!==null?Math.min(100,avg/600*100):0)+"%";a(track,fill);
+      a(cell,label,track,e("strong","",duration(avg)));
+      a(bars,cell);
+    });
+    a(p,bars);a(sec,p);a(container,sec);
+  }
+  return container;
+}
+function sleepDaily(data){
+  const report=data.sleep_intelligence,wrap=section();
+  a(wrap,heading("Ogni notte a confronto","Seleziona un giorno per approfondire"));
+  const nights=report.nights.filter(x=>x.main_sleep_available).slice().reverse();
+  if(!nights.length){a(wrap,empty("Non ci sono notti registrate","Serve una sessione long_sleep valida.","moon"));return wrap;}
+  if(!state.sleepDay||!nights.some(n=>n.day===state.sleepDay))
+    state.sleepDay=nights[0].day;
+  const picker=e("div","sleep-date-picker");
+  const label=e("label","", "Notte da analizzare");
+  label.htmlFor="sleep-date-select";
+  const select=e("select","sleep-select");select.id="sleep-date-select";
+  nights.forEach(n=>{
+    const opt=e("option","",fullDate(n.day));
+    opt.value=n.day;opt.selected=n.day===state.sleepDay;a(select,opt);
+  });
+  select.addEventListener("change",()=>{state.sleepDay=select.value;render();});
+  a(picker,label,select);a(wrap,picker);
+  const cards=e("div","sleep-night-rail");
+  nights.slice(0,14).forEach(n=>{
+    const chosen=n.day===state.sleepDay;
+    const b=e("button","sleep-night-btn"+(chosen?" selected":""));
+    b.type="button";b.setAttribute("aria-pressed",String(chosen));
+    a(b,e("span","",shortDate(n.day)),e("strong","",duration(n.sleep_minutes)),
+      e("small","",num(n.sleep_score)===null?"Score —":"Score "+format(n.sleep_score)));
+    b.addEventListener("click",()=>{state.sleepDay=n.day;render();});
+    a(cards,b);
+  });
+  a(wrap,cards);
+  const night=nights.find(n=>n.day===state.sleepDay);
+  const compare=report.daily_comparisons.find(c=>c.day===night.day);
+  const split=e("div","sleep-night-detail");
+  const main=panel("sleep-night-main");
+  a(main,subhead("moon",fullDate(night.day),"Analisi della singola sessione principale di sonno"));
+  const value=e("div","sleep-big-duration",duration(night.sleep_minutes));
+  a(main,value,e("p","coverage-description",
+    (night.bedtime_local||"—")+" → "+(night.wake_local||"—")+
+    " · punto medio "+(night.sleep_midpoint_local||"—")));
+  const measures=e("div","sleep-night-measures");
+  [["Efficienza",night.sleep_efficiency_pct,"%"],
+   ["Latenza",night.sleep_latency_minutes,"min"],
+   ["Sveglio stimato",night.awake_minutes,"min"],
+   ["Tempo a letto",night.time_in_bed_minutes,"min"],
+   ["Sleep Score",night.sleep_score,"/100"],
+   ["Risvegli/movimenti",night.restless_periods,"stima Oura"],
+   ["HRV notturna",night.hrv_ms,"ms"],
+   ["FC minima",night.heart_rate_min_bpm,"bpm"],
+   ["FC media",night.heart_rate_average_bpm,"bpm"],
+   ["Respirazione",night.respiratory_rate,"atti/min"]].forEach(([name,val,unit])=>{
+    const tile=e("div","sleep-night-measure");
+    a(tile,e("span","",name),e("strong","",format(val,1)+(num(val)!==null?" "+unit:"")));
+    a(measures,tile);
+  });
+  a(main,measures);
+  const stages=panel("sleep-stage-panel");
+  a(stages,subhead("activity","Composizione del sonno","Stime Oura, non polisonnografia"));
+  const stageFields=[
+    ["Profondo",night.deep_sleep_minutes,"deep"],
+    ["REM",night.rem_sleep_minutes,"rem"],
+    ["Leggero",night.light_sleep_minutes,"light"]
+  ];
+  stageFields.forEach(([label,val,kind])=>{
+    const line=e("div","sleep-stage-item"),head=e("div","sleep-stage-header");
+    const percentage=num(night.sleep_minutes)!==null && night.sleep_minutes>0 && num(val)!==null?
+       val/night.sleep_minutes*100:null;
+    a(head,e("span","",label),e("strong","",
+      duration(val)+(percentage!==null?" · "+format(percentage,0)+"%":"")));
+    const track=e("div","sleep-stage-track"),fill=e("div","sleep-stage-fill "+kind);
+    fill.style.width=(percentage===null?0:Math.min(100,percentage))+"%";
+    a(track,fill);a(line,head,track);a(stages,line);
+  });
+  if(night.phase_coverage!=="consistent")a(stages,hint(
+    night.phase_coverage==="inconsistent"?
+    "La somma delle fasi non coincide con il sonno totale: evita di interpretarne le percentuali come esatte.":
+    "Alcune fasi non sono disponibili: la composizione non è completa.","info"));
+  a(stages,hint("Le fasi REM/profondo hanno più incertezza delle metriche globali del sonno.","shield"));
+  a(split,main,stages);a(wrap,split);
+  const comparisons=panel("section-block");
+  a(comparisons,subhead("calendar","Questa notte rispetto alle altre",
+    "Il confronto settimanale esclude sempre la notte selezionata"));
+  const rows=e("table","feature-table"),head=e("thead"),h=e("tr");
+  ["Metrica","Questa notte","Giorno prima","Media 7 precedenti"].forEach(v=>a(h,e("th","",v)));
+  a(head,h);a(rows,head);
+  const body=e("tbody");
+  [["Durata","sleep_minutes","min"],["Efficienza","sleep_efficiency_pct","pp"],
+   ["Tempo sveglio","awake_minutes","min"],["Latenza","sleep_latency_minutes","min"],
+   ["REM","rem_sleep_minutes","min"],["Profondo","deep_sleep_minutes","min"],
+   ["Sleep Score","sleep_score","pt"]].forEach(([label,key,unit])=>{
+     const row=e("tr"),v=night[key],d=compare?.delta_vs_previous_day?.[key],
+       w=compare?.delta_vs_previous7?.[key];
+     a(row,e("td","",label),e("td","",key==="sleep_minutes"?duration(v):format(v,0)),
+       e("td","",sleepDelta(d,unit)),e("td","",sleepDelta(w,unit)));
+     a(body,row);
+  });
+  a(rows,body);a(comparisons,rows);
+  if(!compare?.previous_day_exists)
+    a(comparisons,hint("Manca una sessione principale il giorno precedente: quel confronto rimane vuoto.","info"));
+  if((compare?.previous7_counts?.sleep_minutes||0)<4)
+    a(comparisons,hint("Per la media delle sette notti precedenti servono almeno quattro misurazioni valide.","info"));
+  a(comparisons,e("p","coverage-description","Le colonne 'Giorno prima' e 'Media 7 precedenti' mostrano la DIFFERENZA rispetto ai riferimenti, non i valori assoluti. Una differenza positiva non significa sempre miglioramento."));
+  a(wrap,comparisons);
+  return wrap;
+}
+function sleepView(data){
+  if(!data.sleep_intelligence)return empty("Modulo non disponibile","Aggiorna il motore Oura sul Mac.","moon");
+  const wrap=e("div"),tools=e("div","trend-toolbox");
+  a(tools,e("span","section-subtitle","Esplora 7, 30 o 90 giorni"),
+    segment([7,30,90],state.days,n=>load(n)));
+  a(wrap,tools,sleepWeekly(data),sleepDaily(data),
+    hint("Le analisi descrivono variazioni personali, non diagnosticano disturbi del sonno. L'assenza di dati non significa assenza di sonno.","shield"));
+  return wrap;
+}
 function trainingView(data){
   const wrap=e("div");
   if(!data.meta.workout_history_available &&
@@ -535,7 +742,7 @@ function render(){
   });
   root.replaceChildren();
   if(!state.data)return;
-  const views={today:todayView,trends:trendsView,insights:insightsView,training:trainingView};
+  const views={today:todayView,sleep:sleepView,trends:trendsView,insights:insightsView,training:trainingView};
   a(root,views[state.tab](state.data));
 }
 function selectTab(tab){

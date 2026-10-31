@@ -141,6 +141,16 @@ class TestHealthAnalytics(unittest.TestCase):
         self.assertEqual(csv_path.stat().st_mode & 0o777, 0o600)
         self.assertEqual(json_path.stat().st_mode & 0o777, 0o600)
 
+    def test_sleep_insight_uses_calendar_window_not_last_seven_rows(self):
+        # Four sleep nights spread across a month must not count as four
+        # observations in the most recent seven calendar days.
+        for back in (0, 8, 16, 24):
+            self.store("sleep", self.day - timedelta(days=back),
+                       type="long_sleep", total_sleep_duration=7 * 3600,
+                       average_hrv=50, lowest_heart_rate=52)
+        _, report = health.analyze(self.path, 30, today=self.day)
+        self.assertNotIn("sleep-duration", [i["id"] for i in report["insights"]])
+
     def test_gaps_do_not_fabricate_observations(self):
         self.seed(8)
         rows, doc = health.analyze(self.path, 30, today=self.day)

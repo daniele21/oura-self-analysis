@@ -84,7 +84,8 @@ class TestDirectDriveUpload(unittest.TestCase):
                                   "--drive-folder-id", self.folder_id])
         self.assertEqual(result, 0)
         publish.assert_called_once_with(
-            self.csv, self.manifest, remote="gdrive:", folder_id=self.folder_id)
+            self.csv, self.manifest, remote="gdrive:", folder_id=self.folder_id,
+            extras=())
 
     def test_scheduler_has_rclone_destination_and_no_credentials(self):
         spec = job_spec("/usr/local/bin/uv", None, 9, 15, 30,

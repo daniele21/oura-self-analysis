@@ -92,7 +92,7 @@ def read_workout_days(db: Path, start: date, end: date) -> dict[str, dict]:
             act = category(item.get("activity"))
             agg["categories"][act] = agg["categories"].get(act, 0) + 1
             intensity = item.get("intensity")
-            if intensity not in VALID_INTENSITY:
+            if not isinstance(intensity, str) or intensity not in VALID_INTENSITY:
                 intensity = "unknown"
             agg["intensities"][intensity] = agg["intensities"].get(intensity, 0) + 1
             if intensity != "unknown":
@@ -147,21 +147,23 @@ def event_curve(rows: list[dict], workouts: dict[str, dict],
     remain possible; intervals represent wake-day lags, not exact hours.
     """
     by_date = {row["day"]: row for row in rows}
-    days = sorted(date.fromisoformat(day) for day in workouts
-                  if start <= date.fromisoformat(day) <= end)
+    all_days = sorted(date.fromisoformat(day) for day in workouts)
+    days = [day for day in all_days if start <= day <= end]
     eligible: list[date] = []
+    observed: list[date] = []
     incomplete = overlap = without_baseline = 0
     for day in days:
         if day > end - timedelta(days=3):
             incomplete += 1
             continue
-        if any(other != day and abs((other - day).days) <= 3 for other in days):
-            overlap += 1
-            continue
         if day.isoformat() not in by_date or not any(
             number(by_date[day.isoformat()].get(k)) is not None for k in OUTCOMES
         ):
             without_baseline += 1
+            continue
+        observed.append(day)
+        if any(other != day and abs((other - day).days) <= 3 for other in all_days):
+            overlap += 1
             continue
         eligible.append(day)
 
@@ -183,7 +185,7 @@ def event_curve(rows: list[dict], workouts: dict[str, dict],
 
     groups: dict[str, list[date]] = {}
     intensities: dict[str, list[date]] = {}
-    for day in eligible:
+    for day in observed:
         item = workouts[day.isoformat()]
         kinds = list(item["categories"])
         if len(kinds) == 1:
@@ -197,26 +199,30 @@ def event_curve(rows: list[dict], workouts: dict[str, dict],
         "window": {"start": start.isoformat(), "end": end.isoformat()},
         "recorded_workout_days": len(days),
         "eligible_isolated_days": len(eligible),
+        "observed_event_days": len(observed),
         "excluded_overlapping_days": overlap,
         "excluded_recent_days": incomplete,
         "excluded_no_baseline_days": without_baseline,
         "min_sample_per_lag": MIN_EVENTS,
         "outcomes": curve(eligible),
+        "observed_outcomes": curve(observed),
         "by_activity": [
-            {"activity": key, "isolated_days": len(group), "outcomes": curve(group)}
+            {"activity": key, "observed_days": len(group), "outcomes": curve(group)}
             for key, group in sorted(groups.items())
             if len(group) >= MIN_EVENTS
         ],
         "by_intensity": [
-            {"intensity": key, "isolated_days": len(group), "outcomes": curve(group)}
+            {"intensity": key, "observed_days": len(group), "outcomes": curve(group)}
             for key, group in sorted(intensities.items())
             if len(group) >= MIN_EVENTS
         ],
-        "quality": "exploratory" if len(eligible) >= MIN_EVENTS else "insufficient",
+        "quality": ("isolated" if len(eligible) >= MIN_EVENTS else
+                    "observational-overlap" if len(observed) >= MIN_EVENTS else
+                    "insufficient"),
         "limitations": [
             "D+1/D+2/D+3 indicano risvegli nei tre giorni successivi, non ore esatte dal workout.",
             "Il confronto usa le misurazioni del giorno D come riferimento, non un valore pre-allenamento verificato.",
-            "I workout registrati entro ±3 giorni sono esclusi per evitare sovrapposizioni note.",
+            "Il gruppo isolato esclude workout registrati entro ±3 giorni; il gruppo osservazionale include anche sovrapposizioni.",
             "L'assenza di un workout registrato non prova assenza di allenamento.",
             "Orari, intensità, sonno, trend stagionali e altri confondenti possono influire sui risultati.",
             "Le curve descrivono variazioni associative e non misurano un tempo clinico di recupero.",
@@ -230,33 +236,38 @@ def recovery_insights(curve: dict) -> list[dict]:
     dates = curve["window"]
     enough = curve["eligible_isolated_days"] >= MIN_EVENTS
     support = curve["eligible_isolated_days"]
+    recorded = curve["observed_event_days"]
     detail = (
         "Le differenze mediane per HRV, frequenza cardiaca minima e sonno sono disponibili "
         "per i singoli ritardi solo se esistono almeno quattro coppie di osservazioni."
         if enough else
-        "Il numero di giornate isolate è insufficiente per stimare una curva di risposta."
+        ("Il numero di giornate isolate è insufficiente; "
+         "le eventuali curve su tutte le sessioni sono contaminate da allenamenti ravvicinati."
+         if recorded >= MIN_EVENTS else
+         "I dati non sono sufficienti per stimare curve di risposta.")
     )
     return [{
         "id": "exercise-recovery-72h",
         "title": "Risposta fisiologica nei tre risvegli dopo workout",
         "summary": (
             f"{curve['recorded_workout_days']} giorni con workout registrati; "
-            f"{support} giornate idonee al confronto, "
+            f"{recorded} con riferimento fisiologico, {support} isolate, "
             f"{curve['excluded_overlapping_days']} escluse per allenamenti vicini. " + detail
         ),
         "observation_window": dates,
         "measurements": {
             "recorded_workout_days": curve["recorded_workout_days"],
             "eligible_isolated_days": support,
+            "observed_event_days": recorded,
             "excluded_overlapping_days": curve["excluded_overlapping_days"],
             "excluded_recent_days": curve["excluded_recent_days"],
         },
         "quality": {
-            "level": "limited" if enough else "insufficient",
+            "level": "limited" if enough or recorded >= MIN_EVENTS else "insufficient",
             "recent_n": support,
             "method": curve["method"],
         },
-        "interpretation": "I grafici mostrano differenze rispetto alla notte D. Non consentono di definire quanto tempo serve a recuperare.",
+        "interpretation": "Le curve confrontano i risvegli D+1/D+2/D+3 con il giorno D; le curve osservazionali includono possibili workout ravvicinati. Non stimano un tempo clinico di recupero.",
         "alternative_explanations": ["Altri workout non registrati", "Sonno e stress", "Variazioni nella routine"],
         "limitations": curve["limitations"],
         "evidence_urls": curve["evidence_urls"],

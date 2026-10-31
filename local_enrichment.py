@@ -70,8 +70,7 @@ def choose_sleep(records: list[dict]) -> dict:
     if not records:
         return {}
     candidates = [r for r in records if r.get("type") == "long_sleep"]
-    if not candidates:
-        candidates = [r for r in records if r.get("type") != "rest"]
+    # A short sleep or rest episode is not evidence of a main overnight night.
     if not candidates:
         return {}
     return max(candidates, key=lambda r: number(r.get("total_sleep_duration")) or 0)

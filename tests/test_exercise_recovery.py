@@ -132,7 +132,7 @@ class TestExerciseRecovery(unittest.TestCase):
             self.save("daily_sleep",day,{"score":78})
         rows, report=health.analyze(self.db,days=7,today=self.today)
         self.assertEqual(len(rows),7)
-        self.assertEqual(report["schema_version"],"1.2")
+        self.assertEqual(report["schema_version"],"1.3")
         self.assertEqual(report["exercise_recovery"]["eligible_isolated_days"],5)
         self.assertTrue(all(x["day"]>=(self.today-timedelta(days=6)).isoformat()
                             for x in rows))

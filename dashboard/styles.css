@@ -150,6 +150,8 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
 .insight-expand summary::-webkit-details-marker {display:none}
 .insight-expand summary svg {width:16px;height:16px;transition:transform .2s}
 .insight-expand[open] summary svg {transform:rotate(180deg)}
+.insight-reliability {display:inline-flex;align-items:center;color:#a8c7bd;background:rgba(132,202,177,.08);border:1px solid var(--stroke);border-radius:9px;padding:6px 10px;font-size:11px;font-weight:600;margin:13px 0 0}
+.insight-detail-text {font-size:12px;line-height:1.7;margin:5px 0 0;color:var(--muted)}
 .insight-detail {padding:15px 0 3px;display:grid;gap:13px;font-size:12px;color:var(--muted)}
 .insight-detail h4 {font-size:11px;letter-spacing:1px;color:#c7d5d0;margin:0 0 6px}
 .insight-detail ul {margin:4px 0 0;padding-left:17px}

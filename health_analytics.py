@@ -21,7 +21,7 @@ from local_enrichment import (
     rnd, write_atomically,
 )
 
-ANALYTICS_VERSION = "1.1"
+ANALYTICS_VERSION = "1.2"
 FEATURE_NAME = "health_features.csv"
 INSIGHTS_NAME = "health_insights.json"
 
@@ -40,6 +40,9 @@ FIELDS = [
     "hrv_change_pct", "rhr_bpm", "rhr_median_7d",
     "rhr_median_previous_28d", "rhr_change_bpm",
     "respiratory_rate_per_min", "training_sessions", "prior_day_training",
+    "workout_minutes_recorded", "workout_duration_sessions",
+    "workout_intensity_sessions", "workout_hard_minutes_recorded",
+    "workout_activity_group", "workout_intensity_category",
     "data_quality",
 ]
 
@@ -123,6 +126,8 @@ def primary_features(path: Path, days: int, today: date) -> tuple[list[dict], di
     records = daily_records(path, start - timedelta(days=34), today)
     training, training_available = training_by_day(
         path, start - timedelta(days=1), today)
+    from exercise_recovery import read_workout_days
+    detailed_workouts = read_workout_days(path, start - timedelta(days=1), today)
     if not records:
         raise oura.OuraError("No Oura observations in the requested window.")
     base: dict[str, dict] = {}
@@ -168,6 +173,8 @@ def primary_features(path: Path, days: int, today: date) -> tuple[list[dict], di
             "prior_day_training": (training.get((current - timedelta(days=1)).isoformat(), 0) > 0
                                    if training_available else None),
         }
+        from exercise_recovery import daily_exposure
+        feature.update(daily_exposure(detailed_workouts, key))
         for metric, prefix in (("hrv_ms", "hrv"), ("rhr_bpm", "rhr")):
             recent, _ = observation(base, current, metric, days=7, include_today=True,
                                      minimum=5)
@@ -334,6 +341,17 @@ def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[l
     from longitudinal_insights import SOURCES as LONGITUDINAL_SOURCES, evaluate
     insights = make_insights(rows, meta)
     insights.extend(evaluate(history, meta["window_end"]))
+    # Exercise event curves use more days than the selected 7-day view, but
+    # expose only aggregate curves / coverage, never raw workout event records.
+    exercise_history = history
+    if days < 60:
+        exercise_history, _ = primary_features(path, days=60, today=today)
+    from exercise_recovery import read_workout_days, event_curve, recovery_insights
+    exercise_start = today - timedelta(days=max(days, 60) - 1)
+    workout_days = read_workout_days(path, exercise_start - timedelta(days=3), today)
+    exercise = event_curve(exercise_history, workout_days, start=exercise_start, end=today)
+    if exercise["recorded_workout_days"]:
+        insights.extend(recovery_insights(exercise))
     return rows, {
         "schema_version": ANALYTICS_VERSION,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -341,6 +359,7 @@ def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[l
         "method": "Deterministic descriptive analytics; robust baselines and sensitivity checks. No AI or clinical inference.",
         "metadata": meta,
         "insights": insights,
+        "exercise_recovery": exercise,
         "scientific_references": {**SOURCES, **LONGITUDINAL_SOURCES},
     }
 

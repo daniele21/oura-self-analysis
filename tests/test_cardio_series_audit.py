@@ -54,6 +54,38 @@ class TestCardioAudit(unittest.TestCase):
         for private in ("private-id", "secret-sleep-0", "2026-10-31T23:00:00", '"items"', '"50"'):
             self.assertNotIn(private, string)
 
+    def test_pairwise_prototype_gate_requires_same_day_and_coverage(self):
+        start = self.end
+        for lag in range(8):
+            day=(start-timedelta(days=lag)).isoformat()
+            stamp=day+"T00:00:00+00:00"
+            series={"timestamp":stamp,"interval":300,
+                    "items":[52]*24}
+            self.write(lag,{"type":"long_sleep","heart_rate":series,
+                            "hrv":{"timestamp":stamp,"interval":300,
+                                   "items":[45]*24}})
+        result=audit(self.db,days=10,today=self.end)
+        self.assertEqual(result["prototype_gate"],"ready")
+        self.assertEqual(result["paired_high_coverage_days"],8)
+        self.assertEqual(result["paired_schema_valid_days"],8)
+        with sqlite3.connect(self.db) as conn:
+            conn.execute("DELETE FROM records WHERE day=?",
+                         ((self.end-timedelta(days=2)).isoformat(),))
+            conn.execute("DELETE FROM records WHERE day=?",
+                         ((self.end-timedelta(days=3)).isoformat(),))
+        result=audit(self.db,days=10,today=self.end)
+        self.assertEqual(result["prototype_gate"],"limited")
+        self.assertEqual(result["paired_high_coverage_days"],6)
+
+    def test_channels_on_separate_days_are_not_a_paired_profile(self):
+        stamp="2026-10-31T23:00:00+01:00"
+        series={"timestamp":stamp,"interval":300,"items":[48]*24}
+        self.write(0,{"type":"long_sleep","heart_rate":series})
+        self.write(1,{"type":"long_sleep","hrv":series})
+        result=audit(self.db,days=7,today=self.end)
+        self.assertEqual(result["paired_schema_valid_days"],0)
+        self.assertEqual(result["prototype_gate"],"insufficient")
+
     def test_missing_or_invalid_sample_returns_no_false_positive(self):
         self.write(0, {"type": "long_sleep", "heart_rate": {
             "interval": 0, "timestamp": "bad", "items": [40]}})

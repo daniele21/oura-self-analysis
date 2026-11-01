@@ -35,6 +35,19 @@ class TestMobileInformationArchitecture(unittest.TestCase):
         for tabs in parser.nav_tabs.values():
             self.assertNotIn("trends",tabs)
 
+    def test_sleep_phase_chart_exposes_both_views_and_units(self):
+        code=(ROOT/"dashboard/app.js").read_text()
+        self.assertIn("function sleepStageChart(data)",code)
+        self.assertIn("sleepStageChart(data),sleepWeekly(data)",code)
+        self.assertIn('["composition","Composizione"]',code)
+        self.assertIn('["trend","Trend 7 giorni"]',code)
+        self.assertIn('["minutes","Minuti"]',code)
+        self.assertIn('["percent","Percentuale"]',code)
+        self.assertIn("role\",\"img",code)
+        self.assertIn("Tabella accessibile delle fasi",code)
+        self.assertIn("Fasi incomplete o misurazioni insufficienti",code)
+        self.assertIn("row.sufficient",code)
+
     def test_recovery_entry_has_real_computations_and_no_fake_series(self):
         code=(ROOT/"dashboard/app.js").read_text()
         self.assertIn("function recoveryView(data)",code)

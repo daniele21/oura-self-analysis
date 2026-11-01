@@ -294,3 +294,19 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
   .feature-table {font-size:10px}
   .feature-table th,.feature-table td {padding-inline:2px}
 }
+
+
+/* M0 — Recovery experience and cross-section navigation */
+.recovery-action {
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  padding:11px 15px;border-radius:12px;border:1px solid rgba(165,239,207,.32);
+  background:rgba(165,239,207,.07);color:var(--mint);
+  font-weight:700;font-size:12px;margin-top:14px;min-height:44px;
+}
+.recovery-action:hover {background:rgba(165,239,207,.14)}
+.recovery-action svg {width:17px;height:17px}
+#cardio-night-select {width:100%;max-width:420px}
+@media(max-width:430px){
+  .recovery-action {width:100%;text-align:center}
+  .mobile-nav-btn {min-width:0}
+}

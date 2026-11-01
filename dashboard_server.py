@@ -20,6 +20,7 @@ import sys
 from urllib.parse import parse_qs, urlsplit
 
 import health_analytics
+import cardio_metric_registry
 import local_enrichment
 import oura_self_analysis as oura
 
@@ -99,6 +100,7 @@ def make_payload(db: Path, *, days: int = 30, today: date | None = None) -> dict
         "insights": insights,
         "exercise_recovery": document.get("exercise_recovery"),
         "sleep_intelligence": document.get("sleep_intelligence"),
+        "metric_definitions": cardio_metric_registry.public_definitions(),
         "privacy": "Dati locali. Statistiche descrittive, non valutazioni cliniche.",
     }
 

@@ -110,6 +110,16 @@ The script will upload `daily_enriched.csv`, `health_features.csv`, `health_insi
 
 **Backfill:** for 30 days of health features and a complete earlier non-overlapping 28-day baseline even for the earliest reported day, import **65 days** once with `oura_self_analysis.py sync --days 65 --collections daily_sleep,sleep,daily_readiness,daily_activity,workout`. Existing OAuth authorization and Keychain tokens can be reused.
 
+### Cardiovascular Intelligence — cross-domain context (v1.4)
+
+Recupero now adds **four prespecified** within-person, same-waking-night associations: sleep duration and efficiency against nightly HRV and minimum nighttime HR. Each comparison requires at least 21 valid paired nights spanning four calendar weeks (up to 90 days). Results include Spearman rho, distinct night/week counts, one-week-out sign sensitivity and optional within-week-centered correlation. These tests help flag fragile relationships; they are **not statistical significance or causal inference**. The browser receives only aggregated results, even when opened in 7-day mode. At most two stable exploratory associations are offered as explainable insight cards.
+
+The within-night HR/HRV detail now also describes the **lowest qualified 30-minute heart-rate bin** and its elapsed position from bedtime, plus a P90−P10 spread of the 30-minute medians where at least eight bins are present. This is **not** the absolute heart-rate minimum or a medical biomarker.
+
+The Attività section can expand recorded workout categories and Oura intensity groups to inspect HRV/HR deltas at waking days D+1/D+2/D+3, where sample thresholds are met. Workouts within the window may overlap and be unrecorded. The app does not convert Oura intensity to RPE, infer recovery time or issue training prescriptions.
+
+See [scientific methods](docs/scientific-methods.md) for formulae, selection rules and reliability limits.
+
 ### Cardiovascular Intelligence — night profiles (M1)
 
 The **Recupero** section now has aligned HR and HRV night curves for the chosen main sleep night. A new read-only local endpoint `/api/v2/recovery/night?day=YYYY-MM-DD` reads **only one overnight long_sleep session** and returns privacy-minimized 30-minute median bins for both channels, with missing bins blank. The browser can explore both values with a synchronized keyboard-friendly slider or a tabular alternative.

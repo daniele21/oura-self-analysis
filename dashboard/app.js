@@ -441,7 +441,7 @@ async function loadCardioNightProfile(day,host){
   }
 }
 
-/* M0 Recupero shell: only observed nightly aggregates; no invented 5-min profile. */
+/* M1 Recupero: nightly aggregates plus private sampled 30-minute profile. */
 function recoveryView(data){
   const wrap=e("div"),last=data.records[data.records.length-1];
   const filtered=data.records.filter(row=>num(row.hrv_ms)!==null||num(row.rhr_bpm)!==null);
@@ -478,7 +478,7 @@ function recoveryView(data){
   });
   picker.addEventListener("change",()=>setSelectedNight(picker.value));
   a(controls,label,picker);
-  a(p,subhead("moon","Profilo della notte","Dati aggregati disponibili, serie HR/HRV non ancora verificate"),controls);
+  a(p,subhead("moon","Profilo della notte","Misurazioni aggregate e profilo HR/HRV della notte selezionata"),controls);
   const nightStats=e("div","sleep-night-measures");
   [["HRV media notturna",current.hrv_ms,"ms"],
    ["FC minima notturna",current.rhr_bpm,"bpm"],

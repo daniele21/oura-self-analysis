@@ -21,6 +21,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import health_analytics
 import cardio_metric_registry
+import cardio_night_profiles
 import local_enrichment
 import oura_self_analysis as oura
 
@@ -157,6 +158,36 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._json(403, {"error": "Host non autorizzato"})
             return
         parsed = urlsplit(self.path)
+        if parsed.path == "/api/v2/recovery/night":
+            params = parse_qs(parsed.query, keep_blank_values=True)
+            if set(params) != {"day"} or len(params.get("day", [])) != 1:
+                self._json(400, {"error": "Specificare una sola data nel formato YYYY-MM-DD"})
+                return
+            raw_day = params["day"][0]
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw_day):
+                self._json(400, {"error": "Data non valida"})
+                return
+            try:
+                requested = date.fromisoformat(raw_day)
+            except ValueError:
+                self._json(400, {"error": "Data non valida"})
+                return
+            now = date.today()
+            if requested > now or requested < now - timedelta(days=89):
+                self._json(400, {"error": "La notte deve rientrare negli ultimi 90 giorni"})
+                return
+            try:
+                profile = cardio_night_profiles.night_profile(oura.DB_PATH, raw_day)
+            except (cardio_night_profiles.NightProfileError, sqlite3.Error,
+                    ValueError, OSError):
+                self._json(503, {"error": "Profilo notturno temporaneamente non disponibile",
+                                 "retryable": True})
+                return
+            if profile is None:
+                self._json(404, {"error": "Nessuna sessione principale Oura per questa notte"})
+                return
+            self._json(200, profile)
+            return
         if parsed.path == "/api/dashboard":
             params = parse_qs(parsed.query, keep_blank_values=True)
             if set(params) - {"days"} or len(params.get("days", ["30"])) != 1:

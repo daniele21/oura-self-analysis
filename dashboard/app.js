@@ -1,6 +1,6 @@
 /* Private Oura dashboard: all health data stays in memory and is never cached. */
 "use strict";
-const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, data:null, loading:false, nightAbort:null };
+const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, stageMode:"composition", stageUnit:"minutes", data:null, loading:false, nightAbort:null };
 const root = document.getElementById("view-root");
 const notice = document.getElementById("notice");
 const spinner = document.getElementById("load-state");
@@ -1041,12 +1041,217 @@ function sleepDaily(data){
   a(wrap,comparisons);
   return wrap;
 }
+
+/* Sleep-stage timeline: daily composition (7/30 days), 7-day rolling trend,
+   or weekly night averages for the 90-day composition view.
+   The chart only uses already validated local long_sleep measurements. */
+const PHASES=[
+  {key:"light",label:"Leggero",unit:"",css:"light"},
+  {key:"deep",label:"Profondo",unit:"",css:"deep"},
+  {key:"rem",label:"REM",unit:"",css:"rem"}
+];
+function sleepStageChart(data){
+  const report=data.sleep_intelligence?.stage_trends;
+  const wrap=section();
+  a(wrap,heading("Fasi del sonno nel tempo","Leggero, profondo e REM · confronta durata e composizione"));
+  if(!report)return empty("Andamento delle fasi non disponibile","Il report del sonno non contiene ancora lo storico delle fasi.","moon");
+  const panelEl=panel("sleep-phase-panel");
+  const controls=e("div","sleep-phase-controls");
+  function choices(title,options,current,update){
+    const group=e("div","sleep-phase-choice");group.setAttribute("role","group");
+    group.setAttribute("aria-label",title);
+    a(group,e("span","sleep-phase-control-label",title));
+    options.forEach(([key,label])=>{
+      const b=e("button","sleep-phase-pill"+(current===key?" active":""),
+        label);
+      b.type="button";b.setAttribute("aria-pressed",String(key===current));
+      b.addEventListener("click",()=>{update(key);render();});a(group,b);
+    });
+    return group;
+  }
+  a(controls,choices("Visualizzazione",[
+    ["composition","Composizione"],["trend","Trend 7 giorni"]],
+    state.stageMode,key=>{state.stageMode=key;}),
+    choices("Unità",[["minutes","Minuti"],["percent","Percentuale"]],
+    state.stageUnit,key=>{state.stageUnit=key;}));
+  a(panelEl,controls);
+  const unit=state.stageUnit, suffix=unit==="minutes"?"min":"%";
+  const cards=e("div","sleep-phase-highlights");
+  PHASES.forEach(({key,label,css})=>{
+    const average=data.sleep_intelligence.stage_trends.recent7[key+"_"+unit];
+    const difference=report.delta7[key][unit==="minutes"?"minutes":"percentage_points"];
+    const tile=e("div","sleep-phase-highlight "+css);
+    const sign=num(difference)===null?"—":
+      (difference>0?"+":"")+format(difference,unit==="minutes"?0:1)+
+      (unit==="minutes"?" min":" pp");
+    a(tile,e("span","",label+" · media 7g"),
+      e("strong","",num(average)===null?"—":
+        format(average,unit==="minutes"?0:1)+" "+suffix),
+      e("small","",num(difference)===null?"Confronto non disponibile":
+        sign+" vs 7 giorni prima"));
+    a(cards,tile);
+  });
+  a(panelEl,cards);
+  const isRolling=state.stageMode==="trend";
+  const isWeekly=!isRolling && data.range.days===90;
+  const series=isRolling?report.rolling7:isWeekly?report.weekly_buckets:report.daily;
+  const valid=series.filter(row=>isRolling?row.sufficient:isWeekly?row.sufficient:row.valid);
+  const chartIntro=e("p","coverage-description",
+    isRolling?"Medie mobili degli ultimi 7 giorni di calendario. Ogni punto richiede almeno 4 notti valide.":
+    isWeekly?"Medie per notte in blocchi consecutivi di 7 giorni (ultimo blocco eventualmente più corto).":
+    "Ogni barra rappresenta una notte principale di sonno, ordinata per giorno del risveglio.");
+  a(panelEl,chartIntro);
+  if(!valid.length){
+    a(panelEl,empty("Nessuna fase di sonno completa nel periodo",
+      "Sono necessarie sessioni principali con durate di leggero, profondo e REM coerenti.","moon"));
+    a(wrap,panelEl);return wrap;
+  }
+  const W=780,H=316,L=53,R=14,T=22,B=53;
+  const plotWidth=W-L-R,plotHeight=H-T-B;
+  const metric=(row,key)=>num(row?.[key+"_"+unit]);
+  const sums=valid.map(row=>PHASES.reduce((acc,p)=>acc+(metric(row,p.key)||0),0));
+  const peaks=valid.flatMap(row=>PHASES.map(p=>metric(row,p.key)).filter(x=>x!==null));
+  const maxY=unit==="percent"?100:Math.max(60,Math.ceil((isRolling?
+    Math.max(...peaks):Math.max(...sums))*1.10/30)*30);
+  const yOf=value=>T+plotHeight*(1-value/maxY);
+  const xOf=index=>L+(series.length===1?plotWidth/2:index/(series.length-1)*plotWidth);
+  const barWidth=Math.max(2,Math.min(42,plotWidth/series.length*.72));
+  const svg=s("svg",{viewBox:"0 0 780 316",class:"sleep-phase-svg",role:"img",
+    "aria-label":isRolling?"Tre curve delle medie mobili di leggero, profondo e REM":
+    "Barre impilate delle fasi di sonno leggero, profondo e REM"});
+  a(svg,s("title",{},isRolling?"Media mobile 7 giorni delle fasi del sonno":
+    "Composizione delle fasi per notte o settimana"));
+  for(let j=0;j<=4;j++){
+    const value=maxY*j/4,y=yOf(value);
+    a(svg,s("line",{x1:L,y1:y,x2:W-R,y2:y,class:"sleep-phase-grid"}),
+      s("text",{x:L-9,y:y+4,"text-anchor":"end",class:"sleep-phase-axis"},
+        format(value,unit==="percent"?0:0)+(j===4?" "+suffix:"")));
+  }
+  const tickIndices=[...new Set([0,Math.floor((series.length-1)/4),
+    Math.floor((series.length-1)/2),Math.floor((series.length-1)*3/4),series.length-1])];
+  tickIndices.forEach(idx=>{
+    const row=series[idx];
+    const label=isWeekly?shortDate(row.start):shortDate(row.day);
+    a(svg,s("text",{x:xOf(idx),y:H-15,
+      "text-anchor":idx===0?"start":idx===series.length-1?"end":"middle",
+      class:"sleep-phase-axis"},label));
+  });
+  if(isRolling){
+    PHASES.forEach(p=>{
+      let chunk=[];
+      const flush=()=>{
+        if(chunk.length>=2)a(svg,s("path",{
+          d:chunk.map(([x,y],i)=>(i?"L":"M")+x.toFixed(2)+" "+y.toFixed(2)).join(" "),
+          class:"sleep-phase-line "+p.css}));
+        chunk=[];
+      };
+      series.forEach((row,i)=>{
+        const value=row.sufficient?metric(row,p.key):null;
+        if(value===null){flush();return;}
+        const x=xOf(i),y=yOf(value);
+        chunk.push([x,y]);
+        const point=s("circle",{cx:x,cy:y,r:series.length>45?2.1:3.6,
+          class:"sleep-phase-dot "+p.css});
+        a(point,s("title",{},shortDate(row.day)+" · "+p.label+": "+
+          format(value,1)+" "+suffix+" ("+row.valid_nights+"/7 notti)"));
+        a(svg,point);
+      });
+      flush();
+    });
+  }else{
+    series.forEach((row,i)=>{
+      const ok=isWeekly?row.sufficient:row.valid;
+      if(!ok){
+        // Missing nights are shown with a marker, never a zero-height phase bar.
+        a(svg,s("line",{x1:xOf(i)-barWidth*.35,y1:yOf(0)-4,
+          x2:xOf(i)+barWidth*.35,y2:yOf(0)-4,class:"sleep-phase-missing"}));
+        return;
+      }
+      let start=0;
+      PHASES.forEach(p=>{
+        const value=metric(row,p.key);
+        if(value===null||value<=0)return;
+        const top=yOf(start+value),bottom=yOf(start);
+        const rect=s("rect",{x:xOf(i)-barWidth/2,y:top,width:barWidth,
+          height:Math.max(.6,bottom-top),rx:1,class:"sleep-phase-bar "+p.css});
+        const when=isWeekly?shortDate(row.start)+" – "+shortDate(row.end):shortDate(row.day);
+        a(rect,s("title",{},when+" · "+p.label+": "+format(value,1)+" "+suffix+
+          (isWeekly?" · "+row.valid_nights+"/"+row.calendar_days+" notti":"")));
+        a(svg,rect);
+        start+=value;
+      });
+    });
+  }
+  const current=valid[valid.length-1],lastIndex=series.indexOf(current);
+  const selected=s("line",{x1:xOf(lastIndex),x2:xOf(lastIndex),
+    y1:T,y2:T+plotHeight,class:"sleep-phase-cursor"});
+  a(svg,selected);
+  const plot=e("div","sleep-phase-chart");
+  a(plot,svg);a(panelEl,plot);
+  const legend=e("div","sleep-phase-legend");
+  PHASES.forEach(p=>{
+    const item=e("span","sleep-phase-legend-item"),swatch=e("i","sleep-phase-swatch "+p.css);
+    a(item,swatch,document.createTextNode(p.label));a(legend,item);
+  });
+  a(panelEl,legend);
+  const readout=e("div","sleep-phase-inspector");
+  const sliderLabel=e("label","sleep-phase-inspector-label","Esplora una data");
+  const slider=e("input","sleep-phase-range");
+  slider.type="range";slider.min="0";slider.max=String(series.length-1);
+  slider.step="1";slider.value=String(lastIndex);
+  const output=e("output","sleep-phase-readout");
+  slider.setAttribute("aria-label","Seleziona la notte o il periodo da visualizzare");
+  sliderLabel.append(slider);
+  function inspect(){
+    const idx=Number(slider.value),row=series[idx];
+    const label=isWeekly?shortDate(row.start)+" – "+shortDate(row.end):fullDate(row.day);
+    selected.setAttribute("x1",String(xOf(idx)));
+    selected.setAttribute("x2",String(xOf(idx)));
+    const usable=isRolling?row.sufficient:isWeekly?row.sufficient:row.valid;
+    if(!usable){
+      output.textContent=label+" · Fasi incomplete o misurazioni insufficienti"+
+        (isWeekly||isRolling?" ("+(row.valid_nights||0)+" notti)":"");
+      return;
+    }
+    output.textContent=label+" · "+
+      PHASES.map(p=>p.label+" "+format(metric(row,p.key),unit==="minutes"?0:1)+" "+suffix).join(" · ")+
+      (isRolling?" · "+row.valid_nights+"/7 notti":isWeekly?
+        " · "+row.valid_nights+"/"+row.calendar_days+" notti":"");
+  }
+  slider.addEventListener("input",inspect);inspect();
+  a(readout,sliderLabel,output);a(panelEl,readout);
+  const details=e("details","cardio-tabular sleep-phase-table"),
+    summary=e("summary","","Tabella accessibile delle fasi");
+  a(details,summary);
+  const table=e("table","feature-table"),thead=e("thead"),tr=e("tr");
+  ["Giorno / periodo","Leggero","Profondo","REM","Copertura"].forEach(v=>a(tr,e("th","",v)));
+  a(thead,tr);a(table,thead);
+  const body=e("tbody");
+  series.forEach(row=>{
+    const line=e("tr");
+    const when=isWeekly?shortDate(row.start)+" – "+shortDate(row.end):shortDate(row.day);
+    const ok=isRolling?row.sufficient:isWeekly?row.sufficient:row.valid;
+    a(line,e("td","",when));
+    PHASES.forEach(p=>a(line,e("td","",!ok||metric(row,p.key)===null?"—":
+      format(metric(row,p.key),1)+" "+suffix)));
+    a(line,e("td","",isWeekly?
+      row.valid_nights+"/"+row.calendar_days:
+      isRolling?row.valid_nights+"/7":row.valid?"1/1":"0/1"));
+    a(body,line);
+  });
+  a(table,body);a(details,table);a(panelEl,details);
+  a(panelEl,hint("Leggero, profondo e REM sono stime Oura. Le notti mancanti o con fasi incoerenti sono escluse dalle medie, non considerate come zero. "+
+    "Una percentuale maggiore di REM o profondo non dimostra da sola un sonno migliore.","shield"));
+  a(wrap,panelEl);
+  return wrap;
+}
+
 function sleepView(data){
   if(!data.sleep_intelligence)return empty("Modulo non disponibile","Aggiorna il motore Oura sul Mac.","moon");
   const wrap=e("div"),tools=e("div","trend-toolbox");
   a(tools,e("span","section-subtitle","Esplora 7, 30 o 90 giorni"),
     segment([7,30,90],state.days,n=>load(n)));
-  a(wrap,tools,sleepWeekly(data),sleepDaily(data),
+  a(wrap,tools,sleepStageChart(data),sleepWeekly(data),sleepDaily(data),
     hint("Le analisi descrivono variazioni personali, non diagnosticano disturbi del sonno. L'assenza di dati non significa assenza di sonno.","shield"));
   return wrap;
 }

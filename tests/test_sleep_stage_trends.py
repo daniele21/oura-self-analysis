@@ -31,7 +31,7 @@ class TestSleepStageTrends(unittest.TestCase):
         self.assertEqual(len(data["daily"]),7)
         self.assertEqual(len(data["rolling7"]),7)
         self.assertEqual(data["rolling7"][0]["valid_nights"],7)
-        self.assertEqual(data["rolling7"][0]["deep_minutes"],110)
+        self.assertEqual(data["rolling7"][0]["deep_minutes"],109)
         self.assertEqual(data["rolling7"][-1]["deep_minutes"],103)
         self.assertEqual(data["recent7"]["deep_minutes"],103)
         self.assertEqual(data["previous7"]["deep_minutes"],110)

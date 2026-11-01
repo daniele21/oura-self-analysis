@@ -22,6 +22,7 @@ from urllib.parse import parse_qs, urlsplit
 import health_analytics
 import cardio_metric_registry
 import cardio_night_profiles
+import cardio_night_comparisons
 import local_enrichment
 import oura_self_analysis as oura
 
@@ -177,7 +178,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self._json(400, {"error": "La notte deve rientrare negli ultimi 90 giorni"})
                 return
             try:
-                profile = cardio_night_profiles.night_profile(oura.DB_PATH, raw_day)
+                profile = cardio_night_comparisons.comparison(oura.DB_PATH, raw_day)
             except (cardio_night_profiles.NightProfileError, sqlite3.Error,
                     ValueError, OSError):
                 self._json(503, {"error": "Profilo notturno temporaneamente non disponibile",

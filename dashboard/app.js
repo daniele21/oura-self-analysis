@@ -7,7 +7,7 @@ const spinner = document.getElementById("load-state");
 const labels = {
   today:["La tua panoramica","Una lettura chiara dei segnali che contano davvero.","PANORAMICA PERSONALE","PANORAMICA"],
   sleep:["Il tuo sonno","Dalla settimana alla singola notte: andamento, confronti e dettaglio.","SLEEP INTELLIGENCE","SONNO"],
-  trends:["I tuoi trend","Osserva l'andamento nel tempo, senza dare peso a una sola notte.","LETTURA LONGITUDINALE","TREND"],
+  recovery:["Il tuo recupero","HRV e frequenza cardiaca minima rispetto alla tua storia personale.","CARDIOVASCULAR INTELLIGENCE","RECUPERO"],
   insights:["Insight e contesto","Osservazioni con misure, limiti ed evidenze scientifiche.","EVIDENZE PERSONALI","INSIGHT"],
   training:["Allenamento e recupero","Cosa mostrano i dati dopo le giornate con attività.","MOVIMENTO E RECUPERO","ALLENAMENTI"]
 };
@@ -251,7 +251,7 @@ function todayView(data){
     statCard("Sleep Score",format(last.sleep_score),"/ 100","Punteggio proprietario Oura","moon","violet"),
     statCard("Readiness",format(last.readiness_score),"/ 100","Punteggio proprietario Oura","spark","warm"));
   const metricsSection=section();
-  a(metricsSection,heading("Segnali principali","Ultima osservazione"),cards);a(wrap,metricsSection);
+  a(metricsSection,heading("Segnali principali","Apri Recupero",()=>selectTab("recovery")),cards);a(wrap,metricsSection);
   const summarySection=section(),layout=e("div","overview-layout");
   a(layout,trendCard(data,"hrv_ms",true),qualityCard(data));
   a(summarySection,heading("Il quadro generale","Esplora i trend",()=>selectTab("trends")),layout);
@@ -270,7 +270,7 @@ function trendsView(data){
   a(filters,e("span","section-subtitle","Seleziona indicatore e finestra temporale"),
     segment([7,30,90],state.days,n=>load(n)));
   const picker=e("div","graph-switcher");
-  metrics.forEach(m=>{
+  metrics.filter(m=>m.key==="hrv_ms"||m.key==="rhr_bpm").forEach(m=>{
     const b=e("button",state.metric===m.key?"selected":"",m.label);
     b.type="button";b.setAttribute("aria-pressed",String(state.metric===m.key));
     b.addEventListener("click",()=>{state.metric=m.key;render()});a(picker,b);
@@ -292,6 +292,80 @@ function trendsView(data){
   a(stats,bar,hint("I grafici non interpolano giornate mancanti. I confronti non rappresentano prescrizioni cliniche."));
   a(wrap,stats);
   return wrap;
+}
+
+/* M0 Recupero shell: only observed nightly aggregates; no invented 5-min profile. */
+function recoveryView(data){
+  const wrap=e("div"),last=data.records[data.records.length-1];
+  const filtered=data.records.filter(row=>num(row.hrv_ms)!==null||num(row.rhr_bpm)!==null);
+  if(!filtered.length)return empty("Misurazioni cardiovascolari non disponibili",
+    "La pagina mostrerà HR e HRV soltanto quando saranno presenti osservazioni notturne valide.","heart");
+  if(!state.sleepDay||!filtered.some(x=>x.day===state.sleepDay)){
+    state.sleepDay=filtered[filtered.length-1].day;
+  }
+  const current=filtered.find(x=>x.day===state.sleepDay);
+  const head=section(),stats=e("div","cards-grid");
+  a(head,heading("La tua fisiologia recente","7 giorni vs i 28 precedenti"));
+  const hrvLast=last&&num(last.hrv_median_7d)!==null?last.hrv_median_7d:null;
+  const hrLast=last&&num(last.rhr_median_7d)!==null?last.rhr_median_7d:null;
+  a(stats,
+    statCard("HRV · mediana 7 giorni",format(hrvLast),"ms",
+      "Baseline precedenti 28 giorni: "+format(last?.hrv_median_previous_28d)+" ms",
+      "heart"),
+    statCard("FC minima · mediana 7 giorni",format(hrLast),"bpm",
+      "Baseline precedenti 28 giorni: "+format(last?.rhr_median_previous_28d)+" bpm",
+      "activity","blue"));
+  a(head,stats);
+  a(head,hint("Il selettore 7/30/90 cambia solo il periodo del grafico. Il confronto fisiologico utilizza sempre gli ultimi 7 giorni contro i 28 precedenti, senza sovrapposizioni."));
+  a(wrap,head);
+  const trends=section();
+  a(trends,heading("L'andamento nel tempo","Misurazioni giornaliere"));
+  a(trends,trendsView(data));
+  a(wrap,trends);
+  const night=section(),p=panel(),controls=e("div","sleep-date-picker"),label=e("label","", "Notte selezionata");
+  label.htmlFor="cardio-night-select";
+  const picker=e("select","sleep-select");picker.id="cardio-night-select";
+  [...filtered].reverse().forEach(row=>{
+    const opt=e("option","",fullDate(row.day));opt.value=row.day;
+    opt.selected=row.day===state.sleepDay;a(picker,opt);
+  });
+  picker.addEventListener("change",()=>setSelectedNight(picker.value));
+  a(controls,label,picker);
+  a(p,subhead("moon","Profilo della notte","Dati aggregati disponibili, serie HR/HRV non ancora verificate"),controls);
+  const nightStats=e("div","sleep-night-measures");
+  [["HRV media notturna",current.hrv_ms,"ms"],
+   ["FC minima notturna",current.rhr_bpm,"bpm"],
+   ["Durata del sonno",current.sleep_minutes,"min"],
+   ["Frequenza respiratoria",current.respiratory_rate_per_min,"atti/min"]].forEach(([title,value,unit])=>{
+     const tile=e("div","sleep-night-measure");
+     a(tile,e("span","",title),e("strong","",format(value,1)+(num(value)!==null?" "+unit:"")));
+     a(nightStats,tile);
+  });
+  a(p,nightStats,hint("Le curve a campioni di 5 minuti verranno abilitate solo dopo averne verificato formato, copertura e qualità nel database locale."));
+  const go=e("button","recovery-action","Vedi il dettaglio del sonno di questa notte");
+  go.type="button";a(go,icon("arrow"));
+  go.addEventListener("click",()=>selectTab("sleep"));
+  a(p,go);a(night,p);a(wrap,night);
+  return wrap;
+}
+function setSelectedNight(day){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(day))return;
+  state.sleepDay=day;
+  syncRoute();
+  render();
+}
+function syncRoute(){
+  const route="#/"+state.tab+(state.sleepDay&&(state.tab==="sleep"||state.tab==="recovery")?
+    "/"+state.sleepDay:"");
+  if(window.location.hash!==route)window.history.replaceState(null,"",route);
+}
+function applyRoute(){
+  const parts=window.location.hash.replace(/^#\/?/,"").split("/");
+  const alias={trends:"recovery",training:"training",insights:"insights"};
+  const tab=alias[parts[0]]||parts[0];
+  if(labels[tab])state.tab=tab;
+  if((tab==="sleep"||tab==="recovery")&&/^\d{4}-\d{2}-\d{2}$/.test(parts[1]||""))
+    state.sleepDay=parts[1];
 }
 function safeUrl(x){
   try{const u=new URL(x);return u.protocol==="https:"?u.href:null}catch{return null}
@@ -562,7 +636,7 @@ function sleepDaily(data){
     const opt=e("option","",fullDate(n.day));
     opt.value=n.day;opt.selected=n.day===state.sleepDay;a(select,opt);
   });
-  select.addEventListener("change",()=>{state.sleepDay=select.value;render();});
+  select.addEventListener("change",()=>setSelectedNight(select.value));
   a(picker,label,select);a(wrap,picker);
   const cards=e("div","sleep-night-rail");
   nights.slice(0,14).forEach(n=>{
@@ -571,7 +645,7 @@ function sleepDaily(data){
     b.type="button";b.setAttribute("aria-pressed",String(chosen));
     a(b,e("span","",shortDate(n.day)),e("strong","",duration(n.sleep_minutes)),
       e("small","",num(n.sleep_score)===null?"Score —":"Score "+format(n.sleep_score)));
-    b.addEventListener("click",()=>{state.sleepDay=n.day;render();});
+    b.addEventListener("click",()=>setSelectedNight(n.day));
     a(cards,b);
   });
   a(wrap,cards);
@@ -623,6 +697,10 @@ function sleepDaily(data){
     "Alcune fasi non sono disponibili: la composizione non è completa.","info"));
   a(stages,hint("Le fasi REM/profondo hanno più incertezza delle metriche globali del sonno.","shield"));
   a(split,main,stages);a(wrap,split);
+  const cardioLink=e("button","recovery-action","Analizza HRV e FC di questa notte");
+  cardioLink.type="button";a(cardioLink,icon("heart"));
+  cardioLink.addEventListener("click",()=>selectTab("recovery"));
+  a(wrap,cardioLink);
   const comparisons=panel("section-block");
   a(comparisons,subhead("calendar","Questa notte rispetto alle altre",
     "Il confronto settimanale esclude sempre la notte selezionata"));
@@ -742,12 +820,13 @@ function render(){
   });
   root.replaceChildren();
   if(!state.data)return;
-  const views={today:todayView,sleep:sleepView,trends:trendsView,insights:insightsView,training:trainingView};
+  const views={today:todayView,sleep:sleepView,recovery:recoveryView,insights:insightsView,training:trainingView};
   a(root,views[state.tab](state.data));
 }
 function selectTab(tab){
+  if(tab==="trends")tab="recovery";
   if(!labels[tab])return;
-  state.tab=tab;render();
+  state.tab=tab;syncRoute();render();
   if(window.scrollY>170)window.scrollTo({top:0,behavior:"smooth"});
 }
 async function load(days=state.days){
@@ -780,4 +859,6 @@ document.querySelectorAll("[data-tab]").forEach(btn=>btn.addEventListener("click
 document.getElementById("refresh").addEventListener("click",()=>load());
 if("serviceWorker" in navigator && window.isSecureContext)
   window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+applyRoute();
+window.addEventListener("hashchange",()=>{applyRoute();render();});
 load(30);

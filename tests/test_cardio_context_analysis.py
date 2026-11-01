@@ -38,7 +38,7 @@ class CardioContextTests(unittest.TestCase):
         self.assertGreater(a["spearman_rho"],.5)
         self.assertIsNotNone(a["leave_one_week_sign_consistency_pct"])
         self.assertIn(a["status"],("consistent_exploratory","unstable"))
-        self.assertNotIn("day",str(out["associations"][0]["quality"]))
+        self.assertTrue(all(k in {"paired_nights","minimum_paired_nights","calendar_days","distinct_weeks","within_week_groups"} for k in a["quality"]))
         self.assertFalse(any("predict" in x for x in a["limitations"]))
 
     def test_missing_days_or_too_few_distinct_weeks_is_insufficient(self):

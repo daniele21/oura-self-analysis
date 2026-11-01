@@ -213,3 +213,27 @@ Non-obiettivi: score medico proprietario, previsione malattia/aritmie, diagnosi 
 - Validation of HR/rMSSD Oura and 30-min aggregation: https://pubmed.ncbi.nlm.nih.gov/39686012/
 - NN/g progressive disclosure: https://www.nngroup.com/articles/progressive-disclosure/
 - WCAG 2.2: https://www.w3.org/TR/wcag/
+
+
+## Stato esecutivo verificato — 1 novembre 2026
+
+**Rilasciato sul Mac mini:** fase M0, M1 e primi interventi M2 con deploy self-hosted e test sintetici. Le informazioni qui sotto aggiornano gli ID del backlog originario; non implicano validazione clinica o qualità statistica comprovata sui dati reali.
+
+| Feature | Stato | Evidence/codice |
+|---|---|---|
+| DATA-01 / DATA-02 / DATA-03 | Implementate e verificate | audit privati, cardio_night_profiles.py, cardio_metric_registry.py |
+| UX-01 / UX-02 | Prima versione implementata | cinque tab, Recupero, chart sincronizzati, tabella e deep link notte |
+| CV-01 / CV-02 | Implementate | baseline 7/28 e campioni aggregati per bin da 30 minuti |
+| CV-03 | Implementata come statistica descrittiva | cardio_night_comparisons.py: minimo fra bin 30-min e P90−P10 (non minimo cardiaco assoluto) |
+| CV-04 / CV-05 | Prima versione implementata | notte D−1, profilo D−7…D−1, mediane robuste, dispersione/persistenza |
+| UX-03 | Implementata come link contestuale | Sonno → Recupero con stessa data |
+| CV-06 | Prima versione implementata | longitudinal_insights.py: notti HRV sotto e FC sopra le bande individuali |
+| **CV-07** | **Prima versione rilasciata** | cardio_context_analysis.py: 4 associazioni same-night durata/efficienza × HRV/FC, Spearman, sensibilità per settimana |
+| **CV-08** | **Prima versione rilasciata** | exercise_recovery.py + Attività: sottogruppi attività/intensità con risposte D+1/2/3 |
+| INS-01 | Parziale | evidenza e qualità per ogni insight, ma non esiste ancora un registry/ranking trasversale completo |
+| CV-09 | Da valutare | storico >90 giorni subordinato a retention, termini Oura e qualità |
+| CTX-01 / INS-02 / EXP-01 | Non implementate | diario volontario, analisi con confondenti e protocolli N-of-1 |
+
+**QA:** test offline GitHub Actions su main, workflow self-hosted verifica senza divulgare HRV, FC, risultati delle associazioni o timestamp dei record. API loopback privata; nessun Tailscale Serve/Funnel attivato.
+
+**Priorità della prossima iterazione:** analizzare privatamente **quanto spesso i quattro confronti hanno dati sufficienti e quanti risultano instabili** senza inviare coefficienti a GitHub; valutare se vale la pena un diario volontario per fattori confondenti. Solo successivamente introdurre analisi con lag e modelli più avanzati. Mai presentare correlazioni come cause.

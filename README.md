@@ -128,6 +128,12 @@ Bins are shown only if they contain at least 4 valid nominal five-minute samples
 
 The feature is **local only** and uses already authorized `sleep` data: no new OAuth scopes, remote models, record-level identifiers, additional raw-data disk storage or GitHub health logs. The browser can request at most one of the latest 90 nights per query. Technical details and limitations are in [M1 methodology](docs/m1-night-cardiovascular-profile.md). The existing summary API remains backward compatible.
 
+### Sleep stage trends — light, deep and REM
+
+In **Sonno → Fasi del sonno nel tempo**, a new dedicated chart shows the three estimated sleep phases as color-coded **stacked nightly bars** for 7/30 days or **per-night weekly averages** for the 90-day view. Switch to **Trend 7 giorni** to see three independently drawn rolling 7-calendar-day averages, or between **minutes and percentage of total sleep**. The chart includes a keyboard-accessible date scrubber and a tabular equivalent.
+
+Each night must have a valid main \`long_sleep\` session and three internally consistent phase durations. Missing and inconsistent nights are *missing*, not zero; trend points and weekly comparisons require at least 4 valid nights. Percentages are based on the total observed sleep duration of valid nights, rather than an unweighted percentage average. This is a wearable-derived, descriptive analysis and does not infer a diagnosis or a "better REM score". [Method and limitations](docs/scientific-methods.md).
+
 ### Sleep Intelligence 2.0 (v1.3)
 
 The **Sonno** tab offers three linked views, driven by real, local Oura API V2 sleep data:

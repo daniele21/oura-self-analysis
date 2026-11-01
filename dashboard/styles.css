@@ -379,3 +379,64 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
 .recovery-categories details summary {color:var(--text);font-size:12px;font-weight:650;cursor:pointer;list-style:revert}
 .recovery-categories details table {margin-top:10px}
 @media(max-width:560px) {.cardio-association-grid {grid-template-columns:1fr}}
+
+
+/* Sleep Intelligence — light / deep / REM composition and longitudinal stage trends */
+.sleep-phase-panel {display:grid;gap:16px}
+.sleep-phase-controls {display:flex;gap:18px;flex-wrap:wrap;align-items:end}
+.sleep-phase-choice {display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.sleep-phase-control-label {width:100%;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:750;margin-bottom:2px}
+.sleep-phase-pill {font-size:12px;font-weight:700;padding:8px 11px;border-radius:10px;border:1px solid var(--stroke);background:var(--surface-2);color:var(--muted);min-height:38px}
+.sleep-phase-pill.active {color:var(--mint);background:#203c35;border-color:rgba(165,239,207,.40)}
+.sleep-phase-pill:focus-visible {outline:2px solid var(--mint);outline-offset:2px}
+.sleep-phase-highlights {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sleep-phase-highlight {padding:15px 13px;border:1px solid var(--stroke);border-radius:15px;background:var(--surface-2);display:grid;gap:5px;min-width:0;border-top-width:3px}
+.sleep-phase-highlight.light {border-top-color:#8ed0e6}
+.sleep-phase-highlight.deep {border-top-color:#8279e6}
+.sleep-phase-highlight.rem {border-top-color:#f2b38d}
+.sleep-phase-highlight span {font-size:11px;color:var(--muted)}
+.sleep-phase-highlight strong {font-size:22px;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.sleep-phase-highlight small {font-size:10px;line-height:1.5;color:var(--dim)}
+.sleep-phase-chart {width:100%;min-width:0;overflow:hidden}
+.sleep-phase-svg {display:block;width:100%;height:auto;overflow:visible;fill:none;stroke:none;min-height:205px}
+.sleep-phase-svg .sleep-phase-grid {stroke:rgba(174,201,208,.18);stroke-width:1}
+.sleep-phase-svg .sleep-phase-axis {fill:#a6b8c1;font-size:11px;stroke:none}
+.sleep-phase-svg .sleep-phase-bar.light,.sleep-phase-svg .sleep-phase-dot.light {fill:#8ed0e6}
+.sleep-phase-svg .sleep-phase-bar.deep,.sleep-phase-svg .sleep-phase-dot.deep {fill:#8279e6}
+.sleep-phase-svg .sleep-phase-bar.rem,.sleep-phase-svg .sleep-phase-dot.rem {fill:#f2b38d}
+.sleep-phase-svg .sleep-phase-line {fill:none;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}
+.sleep-phase-svg .sleep-phase-line.light {stroke:#8ed0e6}
+.sleep-phase-svg .sleep-phase-line.deep {stroke:#8279e6}
+.sleep-phase-svg .sleep-phase-line.rem {stroke:#f2b38d}
+.sleep-phase-svg .sleep-phase-missing {stroke:#b6a49c;stroke-dasharray:2 3;stroke-width:2}
+.sleep-phase-svg .sleep-phase-cursor {stroke:#e8f4ee;stroke-width:1.5;stroke-dasharray:4 5;stroke-opacity:.74}
+.sleep-phase-legend {display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap}
+.sleep-phase-legend-item {display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:640;color:var(--muted)}
+.sleep-phase-swatch {width:11px;height:11px;border-radius:3px;display:inline-block}
+.sleep-phase-swatch.light {background:#8ed0e6}
+.sleep-phase-swatch.deep {background:#8279e6}
+.sleep-phase-swatch.rem {background:#f2b38d}
+.sleep-phase-inspector {display:grid;gap:9px;border:1px solid var(--stroke);border-radius:13px;background:var(--surface-2);padding:13px 15px}
+.sleep-phase-inspector-label {display:grid;gap:5px;font-size:12px;font-weight:670;color:var(--muted)}
+.sleep-phase-range {width:100%;min-height:30px;cursor:pointer;accent-color:var(--mint)}
+.sleep-phase-range:focus-visible {outline:2px solid var(--mint);outline-offset:3px}
+.sleep-phase-readout {font-size:12px;font-weight:680;line-height:1.7;font-variant-numeric:tabular-nums}
+.sleep-phase-table {min-width:0}
+.sleep-phase-table table {width:100%}
+@media(max-width:720px) {
+ .sleep-phase-controls {gap:12px}
+ .sleep-phase-highlight {padding:11px 9px}
+ .sleep-phase-highlight strong {font-size:19px}
+ .sleep-phase-svg {min-height:180px}
+}
+@media(max-width:460px) {
+ .sleep-phase-highlights {grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+ .sleep-phase-highlight span {font-size:9.5px}
+ .sleep-phase-highlight strong {font-size:16px}
+ .sleep-phase-highlight small {font-size:9px}
+ .sleep-phase-pill {font-size:11px;padding:8px 10px}
+ .sleep-phase-legend {gap:10px}
+ .sleep-phase-legend-item {font-size:10px}
+ .sleep-phase-readout {font-size:11px}
+ .sleep-phase-table {overflow-x:auto}
+}

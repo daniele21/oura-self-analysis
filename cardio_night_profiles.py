@@ -166,6 +166,16 @@ def build_profile(session: dict, day: str) -> dict:
         quality["valid_sample_fraction"] = round(
             quality["valid_samples"] / quality["expected_samples"], 3
         ) if quality["expected_samples"] else None
+        interval = quality["sample_interval_seconds"]
+        full_night_expected = (
+            math.ceil(length / interval) if interval and
+            quality["status"] in ("ok", "nonstandard_interval") else None
+        )
+        quality["full_night_expected_samples"] = full_night_expected
+        quality["full_night_coverage_fraction"] = (
+            round(min(1., quality["valid_samples"] / full_night_expected), 3)
+            if full_night_expected else None
+        )
         quality["usable"] = quality["qualified_bins"] >= 2
     return {
         "version": "1.0",

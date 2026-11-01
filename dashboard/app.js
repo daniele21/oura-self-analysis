@@ -459,6 +459,29 @@ function cardioNightChart(profile,selectedComparison=null){
     }
     a(box,compare);
   }
+  if(ctx.intranight){
+    const intra=ctx.intranight,hr=intra.heart_rate||{},hrv=intra.hrv||{};
+    const mini=panel("cardio-compare-summary");
+    a(mini,e("h4","","Profilo intranotturno · misure a 30 minuti"));
+    const details=[
+      ["Intervallo della FC più bassa",num(hr.minimum_bin_start_elapsed_minutes)===null?
+        "—":"Da +"+format(hr.minimum_bin_start_elapsed_minutes,0)+" min · "+
+        format(hr.minimum_bin_median_bpm,1)+" bpm",hr.qualified_bins||0],
+      ["Variabilità dei bin FC (P90−P10)",num(hr.median_bin_range_p90_minus_p10_bpm)===null?
+        "—":format(hr.median_bin_range_p90_minus_p10_bpm,1)+" bpm",hr.qualified_bins||0],
+      ["Variabilità dei bin HRV (P90−P10)",num(hrv.median_bin_range_p90_minus_p10_ms)===null?
+        "—":format(hrv.median_bin_range_p90_minus_p10_ms,1)+" ms",hrv.qualified_bins||0]
+    ];
+    details.forEach(([label,value,n])=>{
+      const row=e("div","cardio-compare-line");
+      a(row,e("span","",label),e("strong","",value),
+        e("small","",n+" intervalli validi"));
+      a(mini,row);
+    });
+    a(mini,e("p","coverage-description",
+      "Il minimo si riferisce alla mediana di un intervallo di 30 minuti, non al battito minimo assoluto; servono almeno quattro bin. Per la dispersione ne servono otto."));
+    a(box,mini);
+  }
   if(ctx.selected_halves){
     const halves=panel("cardio-compare-summary");
     a(halves,e("h4","","Prima metà vs seconda metà della notte"));
@@ -524,6 +547,45 @@ async function loadCardioNightProfile(day,host){
 }
 
 /* M1 Recupero: nightly aggregates plus private sampled 30-minute profile. */
+
+function cardioAssociationsView(report){
+  const wrap=section();
+  a(wrap,heading("Sonno e fisiologia","Quattro associazioni predefinite, senza inferenze causali"));
+  const explain=panel("section-block");
+  a(explain,e("p","coverage-description",
+    "Confrontiamo durata ed efficienza del sonno con HRV e FC minima della stessa notte. "+
+    "Per ogni relazione servono almeno 21 notti valide e 4 settimane distinte. "+
+    "La correlazione è descrittiva: non permette di stabilire quale fenomeno sia causa dell'altro."));
+  const grid=e("div","cardio-association-grid");
+  (report?.associations||[]).forEach(item=>{
+    const card=e("article","cardio-association-card"),q=item.quality||{};
+    const rho=num(item.spearman_rho);
+    const status={
+      insufficient:"Dati insufficienti",uninformative:"Segnale costante",
+      weak_observed:"Relazione debole",unstable:"Risultato instabile",
+      limited:"Sensibilità incompleta",
+      consistent_exploratory:"Associazione da verificare"
+    }[item.status]||"Analisi esplorativa";
+    a(card,e("h4","",item.exposure_label+" · "+item.outcome_label),
+      e("strong","cardio-association-value",rho===null?"—":format(rho,2)),
+      e("span","coverage-description","Coefficiente Spearman · "+status),
+      e("p","coverage-description",(q.paired_nights||0)+"/"+(q.calendar_days||90)+
+        " notti confrontabili · "+(q.distinct_weeks||0)+" settimane"));
+    if(num(item.within_week_rho)!==null)
+      a(card,e("p","coverage-description",
+        "Dopo confronto fra settimane: "+format(item.within_week_rho,2)+
+        " · coerenza leave-one-week-out "+format(item.leave_one_week_sign_consistency_pct,0)+"%"));
+    a(grid,card);
+  });
+  if(!grid.childNodes.length)a(grid,e("p","coverage-description",
+    "Nessuna associazione calcolabile: i dati restano privati e non vengono interpolati."));
+  a(explain,grid);
+  a(explain,hint("Spearman misura un'associazione monotona, non un effetto e non la sua causa. "+
+    "Le settimane consecutive e le misure raccolte dallo stesso anello possono introdurre distorsioni.","shield"));
+  a(wrap,explain);
+  return wrap;
+}
+
 function recoveryView(data){
   const wrap=e("div"),last=data.records[data.records.length-1];
   const filtered=data.records.filter(row=>num(row.hrv_ms)!==null||num(row.rhr_bpm)!==null);
@@ -551,6 +613,7 @@ function recoveryView(data){
   a(trends,heading("L'andamento nel tempo","Misurazioni giornaliere"));
   a(trends,trendsView(data));
   a(wrap,trends);
+  if(data.cardio_context)a(wrap,cardioAssociationsView(data.cardio_context));
   const night=section(),p=panel(),controls=e("div","sleep-date-picker"),label=e("label","", "Notte selezionata");
   label.htmlFor="cardio-night-select";
   const picker=e("select","sleep-select");picker.id="cardio-night-select";
@@ -748,12 +811,30 @@ function recoveryCurveCard(response){
       strength:"Forza",running:"Corsa",cycling:"Ciclismo",walking:"Camminata",
       other:"Altre attività", easy:"Facile (Oura)",moderate:"Moderata (Oura)",hard:"Intensa (Oura)"
     };
-    activities.forEach(item=>a(div,e("p","coverage-description",
-      (names[item.activity]||item.activity)+": "+item.observed_days+
-      " giornate registrate; confronti inclusivi di workout vicini.")));
-    intensities.forEach(item=>a(div,e("p","coverage-description",
-      (names[item.intensity]||item.intensity)+": "+item.observed_days+
-      " giornate con intensità registrata.")));
+    const drawGroup=(item,label)=>{
+      const details=e("details","cardio-tabular"),summary=e("summary","",
+        label+" · "+item.observed_days+" giornate registrate");
+      a(details,summary);
+      const table=e("table","feature-table"),thead=e("thead"),tr=e("tr");
+      ["Variabile","D+1","D+2","D+3"].forEach(v=>a(tr,e("th","",v)));
+      a(thead,tr);a(table,thead);
+      const body=e("tbody");
+      [["hrv_ms","HRV","ms"],["rhr_bpm","FC minima","bpm"]].forEach(([key,short,unit])=>{
+        const row=e("tr");a(row,e("td","",short));
+        (item.outcomes||[]).forEach(point=>{
+          const delta=num(point[key+"_delta_median"]),count=point[key+"_n"]||0;
+          const cell=e("td");
+          a(cell,e("strong","",delta===null?"—":
+            (delta>0?"+":"")+format(delta,1)+" "+unit),
+            e("small","training-n","n="+count));
+          a(row,cell);
+        });a(body,row);
+      });
+      a(table,body);a(details,table);
+      a(div,details);
+    };
+    activities.forEach(item=>drawGroup(item,names[item.activity]||"Altre attività"));
+    intensities.forEach(item=>drawGroup(item,names[item.intensity]||"Intensità non classificata"));
     a(p,div);
   }
   a(p,hint("Non è un tempo di recupero validato né una prescrizione di allenamento. Oura usa intensità easy/moderate/hard: non sono valori RPE.", "shield"));

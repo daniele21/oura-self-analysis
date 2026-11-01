@@ -279,11 +279,14 @@ def build(db:Path,*,days:int=30,today:date|None=None)->dict:
         nights.append(row)
         comparisons.append(compare_day(rows,day))
     latest=next((r["day"] for r in reversed(nights) if r["main_sleep_available"]),None)
+    from sleep_stage_trends import build as build_stages
+    stage_trends = build_stages(rows, days=days, today=today)
     return {"schema_version":"2.0","method":"Deterministic local descriptive sleep analysis",
             "window":{"start":first.isoformat(),"end":today.isoformat(),"days":days},
             "weekly":{"recent":recent,"previous":previous,
                       "delta_recent_vs_previous":deltas,"history":history},
             "nights":nights,"daily_comparisons":comparisons,"latest_main_sleep_day":latest,
+            "stage_trends":stage_trends,
             "sources":STUDIES,
             "limitations":[
                 "Finestre di sette giorni di calendario ancorate alla data del report, non settimane ISO.",

@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from statistics import median
 
-from cardio_night_profiles import build_profile, read_main_sleep
+from cardio_night_profiles import NightProfileError, build_profile, read_main_sleep
 
 FIELDS = ("heart_rate_bpm", "hrv_ms")
 MIN_WEEK_NIGHTS = 4
@@ -92,7 +92,11 @@ def comparison(db: Path, waking_day: str) -> dict | None:
     prior = []
     for lag in range(1, MAX_DAYS + 1):
         d = end - timedelta(days=lag)
-        prev = _profile(db, d)
+        try:
+            prev = _profile(db, d)
+        except NightProfileError:
+            # A malformed historical night must not hide the selected one.
+            prev = None
         prior.append(prev)
     yesterday = prior[0]
     # Only aggregate same elapsed 30-minute bins (up to 48).

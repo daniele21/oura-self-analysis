@@ -43,7 +43,7 @@ class TestMobileInformationArchitecture(unittest.TestCase):
         self.assertIn('["trend","Trend 7 giorni"]',code)
         self.assertIn('["minutes","Minuti"]',code)
         self.assertIn('["percent","Percentuale"]',code)
-        self.assertIn("role\",\"img",code)
+        self.assertIn('role:"img"',code)
         self.assertIn("Tabella accessibile delle fasi",code)
         self.assertIn("Fasi incomplete o misurazioni insufficienti",code)
         self.assertIn("row.sufficient",code)

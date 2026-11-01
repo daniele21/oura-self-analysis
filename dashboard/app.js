@@ -301,8 +301,9 @@ function cardioNightChart(profile,selectedComparison=null){
   const box=e("div","cardio-chart-widget"),bins=profile.bins||[];
   const ctx=profile.comparison||{},older=ctx.previous_day||{},
         typical=ctx.previous_7||{};
-  const defaultComparison=(typical.nights_with_main_sleep>=4)?"week":
-                          (older.available?"previous":"none");
+  const weekHasProfile=(typical.bins||[]).some(b=>
+      num(b.heart_rate_bpm)!==null||num(b.hrv_ms)!==null);
+  const defaultComparison=weekHasProfile?"week":older.available?"previous":"none";
   const mode=selectedComparison||defaultComparison;
   const referenceBins=mode==="week"?(typical.bins||[]):
                       mode==="previous"?(older.bins||[]):[];
@@ -477,15 +478,17 @@ function cardioNightChart(profile,selectedComparison=null){
     summary=e("summary","","Tabella accessibile di tutti gli intervalli");
   a(summary,icon("chevron"));
   const tbl=e("table","feature-table"),thead=e("thead"),row=e("tr");
-  ["Da inizio notte","HR (bpm)","HRV (ms)",mode==="none"?"Riferimento":"HR rif. (bpm)",
-   mode==="none"?"—":"HRV rif. (ms)"].forEach(v=>a(row,e("th","",v)));
+  const cols=["Da inizio notte","HR (bpm)","HRV (ms)"];
+  if(mode!=="none")cols.push("HR rif. (bpm)","HRV rif. (ms)");
+  cols.forEach(v=>a(row,e("th","",v)));
   a(thead,row);a(tbl,thead);
   const tbody=e("tbody");
   bins.forEach((bin,i)=>{
     const tr=e("tr"),reference=referenceBins[i]||{};
     a(tr,e("td","", "+"+format(bin.elapsed_minutes,0)+" min"),
       e("td","",num(bin.heart_rate_bpm)===null?"—":format(bin.heart_rate_bpm,1)+" (n="+bin.heart_rate_bpm_n+")"),
-      e("td","",num(bin.hrv_ms)===null?"—":format(bin.hrv_ms,1)+" (n="+bin.hrv_ms_n+")"),
+      e("td","",num(bin.hrv_ms)===null?"—":format(bin.hrv_ms,1)+" (n="+bin.hrv_ms_n+")"));
+    if(mode!=="none")a(tr,
       e("td","",num(reference.heart_rate_bpm)===null?"—":format(reference.heart_rate_bpm,1)),
       e("td","",num(reference.hrv_ms)===null?"—":format(reference.hrv_ms,1)));
     a(tbody,tr);

@@ -10,6 +10,7 @@ Milestone: fondazioni UX e audit privato delle serie cardiovascolari, NON le nuo
 - Dizionario delle metriche in cardio_metric_registry.py: distinzione tra HRV media, FC minima, FC media e serie HR/HRV.
 - Audit locale in scripts/audit_cardio_series.py: legge solo sessioni long_sleep e verifica presenza, struttura PublicSample, intervalli, campioni null e copertura in modo aggregato; nessun dato individuale è stampato o pubblicato.
 - Test offline delle caratteristiche UX, della struttura delle serie e della privacy. Test specifici per CLI diretta e modulo Python.
+- Gate aggiuntivo: conteggio dei giorni con entrambi i canali e almeno 24 campioni validi per canale, copertura almeno 75% e intervallo di 300 secondi. Stato locale: ready (7+ giornate), limited (1-6), insufficient (0). Queste sono convenzioni tecniche per avviare un prototipo, NON soglie mediche.
 
 ## Verifica su Mac mini
 

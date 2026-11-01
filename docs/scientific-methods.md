@@ -51,6 +51,21 @@ Nessun delta giornaliero prova un miglioramento o peggioramento clinico, sopratt
 
 Il selettore permette di scegliere una sessione principale all'interno dei 7/30/90 giorni visualizzati. Il dettaglio mostra in modo navigabile sonno totale, tempo a letto, orari locali, midpoint, efficienza, latenza, tempo sveglio, sonno leggero/REM/profondo, HRV, FC minima/media, respirazione e irrequietezza **soltanto quando questi campi sono presenti**. Le fasi sono frazioni delle durate fornite dal wearable e possono non sommare esattamente al totale.
 
+
+### Fasi del sonno — grafico longitudinale Leggero/Profondo/REM (v1.4)
+
+Il grafico **Sonno → Fasi del sonno nel tempo** usa le durate Oura V2 \`light_sleep_duration\`, \`deep_sleep_duration\`, \`rem_sleep_duration\` convertite in minuti, **solo da sessioni \`type=long_sleep\`** collegate al giorno di risveglio. L'analisi è deterministica e locale (\`sleep_stage_trends.py\`) e riutilizza il risultato già prodotto da \`sleep_intelligence.py\`.
+
+- **Composizione (7/30 giorni):** tre componenti impilate per ogni notte osservata. Notti senza sessione principale o con fasi mancanti/incoerenti hanno una lacuna esplicita, NON tre barre a zero. Ogni componente rappresenta una durata in minuti o la rispettiva quota sul totale del sonno osservato.
+- **Composizione a 90 giorni:** blocchi non sovrapposti di 7 giorni di calendario dal primo giorno della finestra (ultimo blocco potenzialmente parziale), con **media dei minuti per notte qualificata**, non somma del sonno per settimana. Ogni blocco richiede almeno quattro notti valide, inclusi i blocchi parziali; etichette e tabella mostrano n giorni di calendario e n notti valide.
+- **Trend 7 giorni:** media mobile delle fasi su sette giorni di calendario per ogni data, utilizzando anche i sei giorni antecedenti all'intervallo visibile quando disponibili. Ogni punto richiede almeno quattro notti qualificate nella finestra di sette giorni; i punti insufficienti rimangono null, senza interpolazioni.
+- **Percentuale giornaliera:** durata fase / durata totale del sonno nella notte. **Percentuale settimanale:** somma durate della fase / somma dei totali del sonno nelle notti qualificate (media pesata rispetto alla durata, non media aritmetica delle percentuali delle notti).
+- **Confronto 7 vs 7 giorni:** medie per fase e differenza di durata (minuti) o composizione (punti percentuali) solo se ciascun periodo contiene almeno quattro notti qualificate, senza sovrapporre le finestre.
+- **Qualità:** ogni notte richiede sessione principale, durata totale valida e tre durate di fase presenti; la loro somma deve concordare con \`total_sleep_duration\` entro \`max(5 min, 2% del totale)\`. Non si ricostruiscono fasi mancanti, non si sottrae il tempo sveglio per colmare differenze, non si rinormalizza artificialmente a 100% e non si deduce insonnia da notti non misurate.
+- **UX accessibile:** colori e etichette distinti, grafico con asse in minuti o %, cursore da tastiera per leggere data e valori, tabella alternativa e copertura del campione esplicita.
+
+I dati sulle fasi del sonno sono **stime da wearable**: confronti a breve termine possono contenere rumore di classificazione e non implicano miglioramenti clinici. La quota di REM/profondo presa isolatamente non misura la qualità complessiva del sonno. Le soglie n≥4 e coerenza 2% sono controlli di prodotto/ingegneristici, **non soglie diagnostiche**.
+
 ### Evidenze e interpretazione
 
 - **Svensson et al. (2024), Sleep Medicine 115:251–263**, https://doi.org/10.1016/j.sleep.2024.01.020: validazione Oura Gen3 con PSG in 96 persone; buona concordanza per metriche globali, maggiore incertezza nelle fasi e nella rilevazione della veglia.

@@ -119,6 +119,25 @@ class TestCardioNightComparisons(unittest.TestCase):
         ctx=comparison(self.db,self.end.isoformat())["comparison"]
         self.assertFalse(ctx["previous_day"]["available"])
 
+    def test_minimum_window_and_variability_require_qualified_bins(self):
+        # Each 30 minute bin contains six 5-minute samples.
+        values=[60]*12+[52]*6+[55]*6+[57]*72
+        hrv=[40]*24+[60]*72
+        self.insert(0,heart=values,hrv=hrv)
+        profile=comparison(self.db,self.end.isoformat())
+        metrics=profile["comparison"]["intranight"]
+        hr=metrics["heart_rate"]
+        self.assertEqual(hr["minimum_bin_start_elapsed_minutes"],60)
+        self.assertEqual(hr["minimum_bin_median_bpm"],52)
+        self.assertEqual(hr["qualified_bins"],16)
+        self.assertIsNotNone(hr["median_bin_range_p90_minus_p10_bpm"])
+        self.assertIsNotNone(metrics["hrv"]["median_bin_range_p90_minus_p10_ms"])
+        self.insert(0,heart=[50]*18+[None]*78,hrv=[40]*18+[None]*78)
+        limited=comparison(self.db,self.end.isoformat())["comparison"]["intranight"]
+        self.assertIsNone(limited["heart_rate"]["minimum_bin_start_elapsed_minutes"])
+        self.assertIsNone(limited["heart_rate"]["median_bin_range_p90_minus_p10_bpm"])
+        self.assertIsNone(limited["hrv"]["median_bin_range_p90_minus_p10_ms"])
+
     def test_no_selected_night_gives_none(self):
         self.insert(1)
         self.assertIsNone(comparison(self.db,self.end.isoformat()))

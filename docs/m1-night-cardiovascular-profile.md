@@ -42,3 +42,21 @@ Confronto profili D−1 e sette notti precedenti usando tempo trascorso dal cori
 L'accordo API Oura del 2026 limita conservazione, riuso e dati passati a modelli AI, e include restrizioni sulla creazione di servizi che replicano Oura. Il progetto rimane uso privato su dispositivi dell'utente, ma la conformità richiede una valutazione specifica. Riferimento: https://cloud.ouraring.com/legal/api-agreement
 
 Roadmap: [Cardiovascular Intelligence UX](cardiovascular-intelligence-ux-roadmap.md).
+
+
+## M1b — Confronto con notte precedente, sette notti precedenti e metà notte (1 novembre 2026)
+
+Il modulo \`cardio_night_comparisons.py\` estende l'endpoint esistente \`GET /api/v2/recovery/night?day=YYYY-MM-DD\` con la chiave \`comparison\`. Non espone record ID, timestamp grezzi o misurazioni di 5 minuti; restituisce esclusivamente mediane dei bin da 30 minuti e numerosità. Legge sul Mac **solo il giorno richiesto e i sette giorni di risveglio precedenti**; niente nuove autorizzazioni, invii al cloud o storicizzazioni.
+
+- **D−1 esatto:** il confronto della notte scelta considera esclusivamente il precedente giorno di calendario di risveglio, non l'ultima notte disponibile. Se D−1 manca, i valori restano null.
+- **D−7…D−1:** in ogni bin da 30 minuti dal coricamento la mediana viene calcolata usando soltanto le notti precedenti con un bin qualificato alla **stessa posizione temporale**. È necessario almeno un gruppo di **4 notti valide per bin** (non semplicemente quattro notti complessive); se mancano, la mediana non è disponibile.
+- **Scostamenti:** per HR e HRV, calcoliamo la differenza bin-per-bin fra notte scelta e riferimento soltanto dove entrambe hanno valori; mostriamo la **mediana delle differenze** se esistono **almeno 4 coppie di bin**. La media delle differenze non è equiparata alla differenza fra valori medi di sessione Oura.
+- **Due metà della notte:** i bin vengono assegnati alla prima o seconda metà del **tempo a letto** mediante il centro dell'intervallo. La mediana e la differenza seconda−prima richiedono almeno **2 bin qualificati per metà per metrica**. Non identificano le fasi del sonno e non sono indicatori validati di recupero.
+- **Durate diverse:** il confronto usa il tempo trascorso dall'inizio della sessione, non le 23:00 o l'ora locale. Se una notte precedente è più breve, gli intervalli non esistenti rimangono null. Nessuna interpolazione.
+- **Qualità:** mancanza di D−1, notti insufficienti, valori invalidi, sessioni storiche non leggibili e lacune sono gestiti senza inventare misure o dichiarazioni di significatività statistica.
+
+La UI include un selettore Solo notte / Notte precedente / Sette notti, due curve separate HR/HRV con riferimento tratteggiato, legenda, cursore sincronizzato, differenze numeriche con numerosità e tabella accessibile. Nessuna differenza viene etichettata automaticamente come miglioramento o peggioramento.
+
+I criteri 4 notti, 4 coppie di intervalli e 2 bin per metà sono **soglie di completezza ingegneristiche**, non convalidate clinicamente. Il confronto è descrittivo e può dipendere da durata della notte, esercizio, variabilità delle fasi, stress, farmaci, qualità del sensore e altri fattori non misurati.
+
+**Test sintetici:** \`tests/test_cardio_night_comparisons.py\` copre finestre disgiunte, mancata D−1, settimana incompleta, differenze di durata, metà notte, dati storici invalidi e privacy del JSON. L'API eredita le protezioni read-only, loopback, controllo Host e \`Cache-Control: no-store\`.

@@ -98,6 +98,15 @@ class TestPrivateDashboard(unittest.TestCase):
         self.assertNotIn("record_id", json.dumps(recovery))
         self.assertNotIn("start_datetime", json.dumps(recovery))
         self.assertNotIn("end_datetime", json.dumps(recovery))
+        context = payload["cardio_context"]
+        self.assertEqual(context["schema_version"], "1.0")
+        self.assertEqual(len(context["associations"]), 4)
+        self.assertTrue(all(a["quality"]["paired_nights"] <= 55 for a in context["associations"]))
+        self.assertTrue(all(a["status"] in {
+            "insufficient", "uninformative", "weak_observed", "unstable",
+            "limited", "consistent_exploratory"} for a in context["associations"]))
+        self.assertNotIn("record_id", json.dumps(context))
+        self.assertNotIn("sleep_id", json.dumps(context))
 
     def test_90_day_range_has_honest_coverage(self):
         self.seed(days=25)
@@ -105,6 +114,7 @@ class TestPrivateDashboard(unittest.TestCase):
         self.assertEqual(payload["meta"]["observed_days"], 25)
         self.assertEqual(payload["meta"]["coverage_percent"], 28)
         self.assertEqual(payload["range"]["days"], 90)
+        self.assertEqual(len(payload["cardio_context"]["associations"]), 4)
 
     def test_api_security_and_content_type(self):
         self.seed()

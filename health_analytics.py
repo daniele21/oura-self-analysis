@@ -21,7 +21,7 @@ from local_enrichment import (
     rnd, write_atomically,
 )
 
-ANALYTICS_VERSION = "1.3"
+ANALYTICS_VERSION = "1.4"
 FEATURE_NAME = "health_features.csv"
 INSIGHTS_NAME = "health_insights.json"
 
@@ -370,6 +370,16 @@ def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[l
     exercise = event_curve(exercise_history, workout_days, start=exercise_start, end=today)
     if exercise["recorded_workout_days"]:
         insights.extend(recovery_insights(exercise))
+    # Use a separate 90-calendar-day *private* computation for associations,
+    # even when the browser only asks for seven visible days. Never expose
+    # daily values from older dates in the 7/30-day response.
+    context_history = exercise_history
+    if max(days, 60) < 90:
+        context_history, _ = primary_features(path, days=90, today=today)
+    from cardio_context_analysis import evaluate as evaluate_cardio_context
+    from cardio_context_analysis import explain as explain_cardio_context
+    cardio_context = evaluate_cardio_context(context_history, meta["window_end"])
+    insights.extend(explain_cardio_context(cardio_context))
     return rows, {
         "schema_version": ANALYTICS_VERSION,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -378,6 +388,7 @@ def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[l
         "metadata": meta,
         "insights": insights,
         "exercise_recovery": exercise,
+        "cardio_context": cardio_context,
         "sleep_intelligence": sleep_report,
         "scientific_references": {**SOURCES, **LONGITUDINAL_SOURCES},
     }

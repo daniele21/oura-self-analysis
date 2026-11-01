@@ -14,6 +14,10 @@ from pathlib import Path
 import sqlite3
 import sys
 
+# Direct execution from scripts/ must also resolve the project root.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import oura_self_analysis as oura
 from local_enrichment import EXPORT_FOLDER, write_atomically
 

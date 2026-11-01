@@ -366,3 +366,16 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
   .cardio-compare-line strong {text-align:left}
   .cardio-tabular {overflow-x:auto}
 }
+
+
+/* P2 Cardiovascular Intelligence: prespecified contextual evidence */
+.cardio-association-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}
+.cardio-association-card {padding:16px;border:1px solid var(--stroke);border-radius:14px;background:var(--surface-2);display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0}
+.cardio-association-card h4 {font-size:12px;line-height:1.45;font-weight:680;margin:0;color:var(--muted)}
+.cardio-association-value {font-size:29px;font-weight:760;letter-spacing:-.8px;color:var(--text);font-variant-numeric:tabular-nums}
+.cardio-association-card .coverage-description {margin:0;line-height:1.55}
+.cardio-association-card .coverage-description:last-child {margin-top:auto}
+.recovery-categories details {margin-top:9px;padding:11px 13px;border-radius:12px;border:1px solid var(--stroke)}
+.recovery-categories details summary {color:var(--text);font-size:12px;font-weight:650;cursor:pointer;list-style:revert}
+.recovery-categories details table {margin-top:10px}
+@media(max-width:560px) {.cardio-association-grid {grid-template-columns:1fr}}

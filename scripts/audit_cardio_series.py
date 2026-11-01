@@ -18,6 +18,10 @@ import sqlite3
 import sys
 import tempfile
 
+# Direct execution from scripts/ must also resolve the project root.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import oura_self_analysis as oura
 
 REPORT_DIR = Path.home() / "Library" / "Application Support" / "OuraSelfAnalysis" / "private-audits"

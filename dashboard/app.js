@@ -1,6 +1,6 @@
 /* Private Oura dashboard: all health data stays in memory and is never cached. */
 "use strict";
-const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, data:null, loading:false };
+const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, data:null, loading:false, nightAbort:null };
 const root = document.getElementById("view-root");
 const notice = document.getElementById("notice");
 const spinner = document.getElementById("load-state");
@@ -294,6 +294,152 @@ function trendsView(data){
   return wrap;
 }
 
+
+/* 30-minute bin visualizations for one private Oura night.
+   Both channels share elapsed minutes; missing bins are never connected. */
+function cardioNightChart(profile){
+  const box=e("div","cardio-chart-widget"),bins=profile.bins||[];
+  if(!bins.length)return empty("Nessun intervallo disponibile",
+    "La notte non contiene dati temporali utilizzabili.","heart");
+  const dimensions={w:720,h:372,left:54,right:19,top:37,gap:64,plotHeight:113};
+  const xMin=dimensions.left,xMax=dimensions.w-dimensions.right;
+  const maxMinutes=Math.max(30,num(profile.duration_minutes)||30);
+  const xOf=elapsed=>xMin+elapsed/maxMinutes*(xMax-xMin);
+  const plotConfig=[
+    {field:"heart_rate_bpm",title:"Frequenza cardiaca",unit:"bpm",cls:"cardio-hr",yTop:37},
+    {field:"hrv_ms",title:"Variabilità cardiaca",unit:"ms",cls:"cardio-hrv",yTop:37+113+64}
+  ];
+  const chart=s("svg",{class:"cardio-profile-svg",viewBox:"0 0 720 372",role:"img",
+    "aria-label":"Frequenza cardiaca e HRV della notte in intervalli di 30 minuti, con lacune visibili"});
+  const title=s("title",{}, "HR e HRV allineate nel tempo trascorso da quando sei andato a letto");
+  a(chart,title);
+  const verticalMarkers=[];
+  plotConfig.forEach(metric=>{
+    const nums=bins.map(b=>num(b[metric.field])).filter(x=>x!==null);
+    const yMin=nums.length?Math.min(...nums):0, yMax=nums.length?Math.max(...nums):1;
+    const margin=Math.max(1,(yMax-yMin)*.16);
+    const lower=yMin-margin,upper=yMax+margin;
+    const yOf=value=>metric.yTop+(1-(value-lower)/(upper-lower))*dimensions.plotHeight;
+    a(chart,s("text",{x:xMin,y:metric.yTop-15,class:"cardio-panel-label"},
+      metric.title+" ("+metric.unit+")"));
+    for(let j=0;j<=3;j++){
+      const y=metric.yTop+j*dimensions.plotHeight/3;
+      a(chart,s("line",{x1:xMin,y1:y,x2:xMax,y2:y,class:"graph-grid"}),
+        s("text",{x:xMin-9,y:y+4,"text-anchor":"end",class:"graph-label"},
+          nums.length?format(upper-(upper-lower)*j/3,0):"—"));
+    }
+    let points=[];
+    const flush=()=>{
+      if(points.length>1){
+        a(chart,s("path",{class:"cardio-profile-line "+metric.cls,
+          d:points.map(([x,y],i)=>(i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1)).join(" ")}));
+      }
+      points=[];
+    };
+    bins.forEach(b=>{
+      const value=num(b[metric.field]);
+      if(value===null){flush();return;}
+      const xx=xOf(b.elapsed_minutes+15),yy=yOf(value);
+      points.push([xx,yy]);
+      const circ=s("circle",{cx:xx,cy:yy,r:3.2,class:"cardio-point "+metric.cls});
+      a(circ,s("title",{},"Dopo "+format(b.elapsed_minutes,0)+" minuti: "+
+        format(value,1)+" "+metric.unit));
+      a(chart,circ);
+    });
+    flush();
+    const v=s("line",{x1:xOf(bins[0].elapsed_minutes+15),
+      x2:xOf(bins[0].elapsed_minutes+15),y1:metric.yTop,
+      y2:metric.yTop+dimensions.plotHeight,class:"cardio-crosshair"});
+    a(chart,v);verticalMarkers.push(v);
+    if(!nums.length)a(chart,s("text",{x:dimensions.w/2,y:metric.yTop+65,
+       "text-anchor":"middle",class:"cardio-empty-label"},"Campioni insufficienti"));
+  });
+  const labelY=dimensions.h-13;
+  for(let minutes=0;minutes<=maxMinutes;minutes+=120){
+    a(chart,s("text",{x:xOf(minutes),y:labelY,
+      "text-anchor":minutes===0?"start":"middle",class:"graph-label"},
+      "+"+format(minutes/60,0)+"h"));
+  }
+  a(box,chart);
+  const note=e("p","coverage-description",
+    "Asse comune: tempo dall'inizio della sessione a letto. Ogni punto è la mediana di 30 minuti con almeno 4 campioni validi; le lacune restano vuote.");
+  a(box,note);
+  const cursor=e("div","cardio-cursor");
+  const caption=e("label","cardio-cursor-label","Esplora lo stesso intervallo nei due grafici");
+  const slider=e("input","cardio-cursor-range");
+  slider.type="range";slider.min="0";slider.max=String(bins.length-1);slider.step="1";slider.value="0";
+  const selected=e("output","cardio-selected-readout");
+  caption.append(slider);
+  function update(){
+    const idx=Number(slider.value),current=bins[idx];
+    const x=xOf(current.elapsed_minutes+15);
+    verticalMarkers.forEach(line=>{line.setAttribute("x1",String(x));line.setAttribute("x2",String(x));});
+    selected.textContent="+"+format(current.elapsed_minutes/60,1)+" h · HR "+
+      (num(current.heart_rate_bpm)===null?"—":format(current.heart_rate_bpm,1)+" bpm")+
+      " (n="+current.heart_rate_bpm_n+") · HRV "+
+      (num(current.hrv_ms)===null?"—":format(current.hrv_ms,1)+" ms")+
+      " (n="+current.hrv_ms_n+")";
+  }
+  slider.addEventListener("input",update);
+  a(cursor,caption,selected);
+  a(box,cursor);update();
+  const quality=profile.channels||{};
+  const infos=e("div","cardio-quality-grid");
+  [["HR",quality.heart_rate],["HRV",quality.hrv]].forEach(([name,q])=>{
+    if(!q)return;
+    const tile=e("div","cardio-quality");
+    a(tile,e("strong","",name+" · "+q.qualified_bins+"/"+q.total_bins+" intervalli"),
+      e("span","",q.status==="ok"?
+        format(q.valid_sample_fraction*100,0)+"% campioni validi nel dato esportato":
+        q.status==="missing"?"Serie non disponibile":
+        "Formato o frequenza non standard: curva non interpretata"));
+    a(infos,tile);
+  });
+  a(box,infos);
+  const details=e("details","cardio-tabular"),
+    summary=e("summary","","Tabella accessibile di tutti gli intervalli");
+  a(summary,icon("chevron"));
+  const tbl=e("table","feature-table"),thead=e("thead"),row=e("tr");
+  ["Da inizio notte","HR (bpm)","HRV (ms)"].forEach(v=>a(row,e("th","",v)));
+  a(thead,row);a(tbl,thead);
+  const tbody=e("tbody");
+  bins.forEach(bin=>{
+    const tr=e("tr");
+    a(tr,e("td","", "+"+format(bin.elapsed_minutes,0)+" min"),
+      e("td","",num(bin.heart_rate_bpm)===null?"—":format(bin.heart_rate_bpm,1)+" (n="+bin.heart_rate_bpm_n+")"),
+      e("td","",num(bin.hrv_ms)===null?"—":format(bin.hrv_ms,1)+" (n="+bin.hrv_ms_n+")"));
+    a(tbody,tr);
+  });
+  a(tbl,tbody);a(details,tbl);a(box,details);
+  a(box,hint("Le misure Oura sono esplorative. Frequenza cardiaca e HRV non consentono, da sole, di diagnosticare stress o recupero.","shield"));
+  return box;
+}
+async function loadCardioNightProfile(day,host){
+  if(state.nightAbort)state.nightAbort.abort();
+  const controller=new AbortController();state.nightAbort=controller;
+  try{
+    const r=await fetch("/api/v2/recovery/night?day="+encodeURIComponent(day),{
+      cache:"no-store",credentials:"same-origin",signal:controller.signal,
+      headers:{Accept:"application/json"}});
+    const data=await r.json();
+    if(controller.signal.aborted||state.tab!=="recovery"||state.sleepDay!==day||!host.isConnected)return;
+    if(r.status===404){
+      host.replaceChildren(empty("Nessuna sessione notturna principale",
+        "Per questa giornata non è disponibile il profilo di sonno principale.","heart"));
+      return;
+    }
+    if(!r.ok)throw Error("La serie di questa notte non è disponibile.");
+    if(!Array.isArray(data.bins)||!data.channels)throw Error("Formato del profilo inatteso.");
+    host.replaceChildren(cardioNightChart(data));
+  }catch(err){
+    if(err.name==="AbortError"||controller.signal.aborted||!host.isConnected)return;
+    host.replaceChildren(empty("Impossibile mostrare le curve",
+      "I riepiloghi notturni restano disponibili. Aggiorna la pagina o scegli un'altra notte.","info"));
+  }finally{
+    if(state.nightAbort===controller)state.nightAbort=null;
+  }
+}
+
 /* M0 Recupero shell: only observed nightly aggregates; no invented 5-min profile. */
 function recoveryView(data){
   const wrap=e("div"),last=data.records[data.records.length-1];
@@ -341,7 +487,11 @@ function recoveryView(data){
      a(tile,e("span","",title),e("strong","",format(value,1)+(num(value)!==null?" "+unit:"")));
      a(nightStats,tile);
   });
-  a(p,nightStats,hint("Le curve a campioni di 5 minuti verranno abilitate solo dopo averne verificato formato, copertura e qualità nel database locale."));
+  a(p,nightStats);
+  const profileMount=e("div","cardio-profile-mount");
+  a(profileMount,e("p","coverage-description","Caricamento del profilo notturno…"));
+  a(p,profileMount);
+  loadCardioNightProfile(state.sleepDay,profileMount);
   const go=e("button","recovery-action","Vedi il dettaglio del sonno di questa notte");
   go.type="button";a(go,icon("arrow"));
   go.addEventListener("click",()=>selectTab("sleep"));

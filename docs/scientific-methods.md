@@ -1,6 +1,6 @@
 # Metodologia scientifica — Oura Self-Analysis MVP
 
-**Versione:** 1.3 — 31 ottobre 2026. **Ambito:** statistiche personali descrittive, non diagnosi e non decisioni cliniche.
+**Versione:** 1.4 — 1 novembre 2026. **Ambito:** statistiche personali descrittive, non diagnosi e non decisioni cliniche.
 
 ## Obiettivo
 
@@ -166,6 +166,33 @@ La presenza di **nessun record workout** non implica riposo. Gli sport non regis
 - [Review/meta-analisi su allenamento intenso e HRV (2025)](https://doi.org/10.1007/s10286-024-01103-7) riguarda prevalentemente risposte nell'immediato post-esercizio; **non** valida la nostra curva notturna D+1/2/3.
 
 Queste fonti motivano il monitoraggio longitudinale e le cautele, non validano i requisiti minimi, l'isolamento ±3 giorni né gli effetti individuali stimati.
+
+
+## Cardiovascular Intelligence 2.0 — relazioni HRV/FC e sonno
+
+**Implementazione:** \`cardio_context_analysis.py\`; valori mostrati nella sezione Recupero e, soltanto quando soddisfano i controlli esplorativi, come massimo due nuovi insight.
+
+Quattro confronti **predefiniti prima di osservare i risultati**:
+1. Durata del sonno ↔ HRV media notturna.
+2. Durata del sonno ↔ FC minima notturna.
+3. Efficienza del sonno ↔ HRV media notturna.
+4. Efficienza del sonno ↔ FC minima notturna.
+
+La data è quella di *risveglio* Oura, quindi sono misure dello **stesso episodio di sonno**, non "sonno che causa HRV/FC" o previsione dell'andamento successivo. Si utilizzano soltanto date distinte con coppie valide, massimo **90 giorni di calendario** e almeno **21 notti appaiate in quattro settimane distinte**. Le serie più corte e i valori costanti producono risultato assente/indeterminato.
+
+La metrica è **Spearman rho** con gestione esplicita dei ranghi pari. Sensibilità: ricalcolo togliendo una settimana di calendario alla volta (quota di risultati che mantengono il segno) e correlazione fra segnali centrati entro ciascuna settimana (almeno 4 settimane con 3+ coppie). Le categorie \`weak_observed\`, \`unstable\`, \`consistent_exploratory\` ecc. sono etichette **di presentazione, non test clinici né significatività statistica**. In particolare rho ±0,2 e coerenza 75% sono euristiche ingegneristiche; nessun p-value, intervallo causale, previsione, score di salute o screening.
+
+**Limitazioni:** misure dallo stesso dispositivo e dalla stessa notte, fattori confondenti (allenamento, alcol, stress, malessere, orari, routine), autocorrelazione tra notti, misure mancanti, campione piccolo e sensibilità a singole settimane. Il solo effetto di un fattore non può essere isolato. Per una fase successiva valutare diario di fattori contestuali *volontario*, previa verifica di privacy/retention, e disegni N-of-1 prespecificati.
+
+### Integrazione allenamento
+
+Si sfrutta il già esistente \`exercise_recovery.py\`: le curve per attività e intensità Oura vengono ora mostrate in Attività anche a livello di sottogruppo, se ci sono almeno 4 giornate osservate. I dati possono comprendere allenamenti ravvicinati, attività non registrate e durate non disponibili. Il confronto D+1/2/3 rappresenta **giorni di risveglio** e non ore esatte dopo il workout. Intensità Oura easy/moderate/hard **non equivale** a session-RPE. Non deduciamo causa, performance o tempo di recupero.
+
+### Intranotte — FC minima e dispersione dei profili
+
+Nel dettaglio \`cardio_night_comparisons.py\`, ogni intervallo da 30 minuti è una mediana di almeno 4 campioni validi nominalmente a 5 minuti. Il "minimo" è **la mediana minima di un intervallo qualificato**, non il battito minimo di Oura né il minimo HR in assoluto. Richiede almeno 4 bin qualificati. Il tempo indicato è l'inizio dell'intervallo dal coricamento. La dispersione intranotte è \`P90−P10\` delle mediane qualificate e richiede almeno **8 bin** per singola metrica. Mancanze e intervalli non standard non vengono riempiti/interpolati. Nessuna classificazione fisiologica o clinica è prodotta.
+
+**Fonti metodologiche:** https://doi.org/10.1152/ajpheart.00041.2026 e https://www.ausport.gov.au/ais/position_statements/heart-rate-variability. Le fonti sostengono la prudenza nella lettura longitudinale e con potenziali confondenti, **non validano** i nostri coefficienti/limiti minimi né l'utilità clinica di questi confronti.
 
 ## 4. Data Quality e spiegabilità
 

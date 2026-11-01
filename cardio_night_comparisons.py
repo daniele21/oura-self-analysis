@@ -83,6 +83,53 @@ def _paired_summary(selected: dict, reference: list[dict], field: str) -> dict:
     }
 
 
+
+
+def _percentile(values: list[float], p: float) -> float:
+    ordered=sorted(values)
+    k=p*(len(ordered)-1)
+    lo=int(k)
+    hi=min(len(ordered)-1,lo+1)
+    return ordered[lo]+(k-lo)*(ordered[hi]-ordered[lo])
+
+
+def intranight_structure(profile: dict) -> dict:
+    """Describe 30-minute windows only; no physiological/clinical low claim."""
+    hr=[(b["elapsed_minutes"],b["heart_rate_bpm"]) for b in profile["bins"]
+        if b["heart_rate_bpm"] is not None]
+    out={"heart_rate":{
+             "qualified_bins":len(hr),"minimum_bin_start_elapsed_minutes":None,
+             "minimum_bin_median_bpm":None,"minimum_relative_position_pct":None,
+             "median_bin_range_p90_minus_p10_bpm":None,
+         },
+         "hrv":{"qualified_bins":0,"median_bin_range_p90_minus_p10_ms":None},
+         "method":"30-minute bin medians; minimum bin and 10th–90th percentile spread",
+         "limitations":[
+             "Il minimo è il minore fra le mediane di 30 minuti disponibili, non il minimo battito della notte.",
+             "Servono almeno otto intervalli validi per stimare l'ampiezza fra percentili.",
+             "La posizione del minimo dipende da durata, lacune, fasi del sonno e qualità del sensore.",
+             "Questi indicatori non misurano stress, malattia o tempi di recupero.",
+         ]}
+    if len(hr)>=4:
+        earliest=min(hr,key=lambda point:(point[1],point[0]))
+        out["heart_rate"].update({
+            "minimum_bin_start_elapsed_minutes":earliest[0],
+            "minimum_bin_median_bpm":round(earliest[1],2),
+            "minimum_relative_position_pct":round(
+                min(100,(earliest[0]+profile["bin_minutes"]/2)/
+                    profile["duration_minutes"]*100),1),
+        })
+    if len(hr)>=8:
+        samples=[v for _,v in hr]
+        out["heart_rate"]["median_bin_range_p90_minus_p10_bpm"]=round(
+            _percentile(samples,.9)-_percentile(samples,.1),2)
+    hrv=[b["hrv_ms"] for b in profile["bins"] if b["hrv_ms"] is not None]
+    out["hrv"]["qualified_bins"]=len(hrv)
+    if len(hrv)>=8:
+        out["hrv"]["median_bin_range_p90_minus_p10_ms"]=round(
+            _percentile(hrv,.9)-_percentile(hrv,.1),2)
+    return out
+
 def comparison(db: Path, waking_day: str) -> dict | None:
     """Return one selected night with contextual *aggregate-only* comparisons."""
     end = date.fromisoformat(waking_day)
@@ -146,6 +193,7 @@ def comparison(db: Path, waking_day: str) -> dict | None:
             "bins": reference,
         },
         "selected_halves": _half_profile(selected),
+        "intranight": intranight_structure(selected),
         "deltas": summaries,
         "method": "exact preceding waking day; previous 7 independent nights at equal elapsed-from-bedtime bins",
         "limitations": [

@@ -310,3 +310,37 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
   .recovery-action {width:100%;text-align:center}
   .mobile-nav-btn {min-width:0}
 }
+
+
+/* M1 — aligned HR/HRV night charts. One time axis and no interpolated gaps. */
+.cardio-profile-mount {margin-top:24px}
+.cardio-chart-widget {display:grid;gap:15px;min-width:0}
+.cardio-profile-svg {display:block;width:100%;height:auto;min-height:245px;overflow:visible;stroke:none}
+.cardio-profile-svg .graph-grid {stroke:rgba(180,207,205,.16);stroke-width:1}
+.cardio-profile-svg .graph-label {fill:#a1b7bd;font-size:11px;stroke:none}
+.cardio-profile-svg .cardio-panel-label {fill:var(--text);font-size:14px;font-weight:700;stroke:none}
+.cardio-profile-svg .cardio-empty-label {fill:var(--muted);font-size:12px;stroke:none}
+.cardio-profile-line {fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.cardio-profile-line.cardio-hr {stroke:#88b9e9}
+.cardio-profile-line.cardio-hrv {stroke:#a5efcf}
+.cardio-point.cardio-hr {fill:#88b9e9}
+.cardio-point.cardio-hrv {fill:#a5efcf}
+.cardio-crosshair {stroke:#f1f7f4;stroke-opacity:.60;stroke-width:1.5;stroke-dasharray:4 4}
+.cardio-cursor {display:grid;gap:8px;padding:12px 15px;border:1px solid var(--stroke);border-radius:14px;background:var(--surface-2)}
+.cardio-cursor-label {display:grid;gap:9px;font-size:12px;color:var(--muted);font-weight:600}
+.cardio-cursor-range {width:100%;min-height:27px;accent-color:var(--mint-strong);cursor:pointer}
+.cardio-cursor-range:focus-visible {outline:2px solid var(--mint);outline-offset:3px}
+.cardio-selected-readout {font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;color:var(--text);line-height:1.6}
+.cardio-quality-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.cardio-quality {display:grid;gap:5px;border:1px solid var(--stroke);background:var(--surface-2);border-radius:12px;padding:12px 14px}
+.cardio-quality strong {font-size:12px}
+.cardio-quality span {font-size:11px;color:var(--muted);line-height:1.5}
+.cardio-tabular {padding:10px 0;border-top:1px solid var(--stroke);border-bottom:1px solid var(--stroke)}
+.cardio-tabular summary {font-size:12px;font-weight:650;color:var(--mint);cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+.cardio-tabular summary svg {height:16px;width:16px}
+.cardio-tabular table {width:100%;margin:14px 0}
+@media(max-width:520px){
+  .cardio-profile-svg {min-height:205px}
+  .cardio-quality-grid {grid-template-columns:1fr}
+  .cardio-selected-readout {font-size:12px}
+}

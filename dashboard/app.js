@@ -297,10 +297,30 @@ function trendsView(data){
 
 /* 30-minute bin visualizations for one private Oura night.
    Both channels share elapsed minutes; missing bins are never connected. */
-function cardioNightChart(profile){
+function cardioNightChart(profile,selectedComparison=null){
   const box=e("div","cardio-chart-widget"),bins=profile.bins||[];
+  const ctx=profile.comparison||{},older=ctx.previous_day||{},
+        typical=ctx.previous_7||{};
+  const defaultComparison=(typical.nights_with_main_sleep>=4)?"week":
+                          (older.available?"previous":"none");
+  const mode=selectedComparison||defaultComparison;
+  const referenceBins=mode==="week"?(typical.bins||[]):
+                      mode==="previous"?(older.bins||[]):[];
+  const referenceTitle=mode==="week"?"Mediana 7 notti precedenti":
+                       mode==="previous"?"Notte precedente":"Nessun riferimento";
   if(!bins.length)return empty("Nessun intervallo disponibile",
     "La notte non contiene dati temporali utilizzabili.","heart");
+  const picker=e("div","cardio-comparison-picker");
+  const pickLabel=e("label","cardio-cursor-label","Confronta con");
+  const pickSelect=e("select","sleep-select");
+  [["none","Solo notte selezionata"],["previous","Notte precedente (D−1)"],
+   ["week","Sette notti precedenti (D−7…D−1)"]].forEach(([key,label])=>{
+     const option=e("option","",label);
+     option.value=key;option.selected=key===mode;a(pickSelect,option);
+  });
+  pickSelect.setAttribute("aria-label","Scegli il riferimento notturno");
+  pickSelect.addEventListener("change",()=>box.replaceWith(cardioNightChart(profile,pickSelect.value)));
+  a(pickLabel,pickSelect);a(picker,pickLabel);a(box,picker);
   const dimensions={w:720,h:372,left:54,right:19,top:37,gap:64,plotHeight:113};
   const xMin=dimensions.left,xMax=dimensions.w-dimensions.right;
   const maxMinutes=Math.max(30,num(profile.duration_minutes)||30);
@@ -315,7 +335,8 @@ function cardioNightChart(profile){
   a(chart,title);
   const verticalMarkers=[];
   plotConfig.forEach(metric=>{
-    const nums=bins.map(b=>num(b[metric.field])).filter(x=>x!==null);
+    const nums=[...bins.map(b=>num(b[metric.field])),
+                ...referenceBins.map(b=>num(b[metric.field]))].filter(x=>x!==null);
     const yMin=nums.length?Math.min(...nums):0, yMax=nums.length?Math.max(...nums):1;
     const margin=Math.max(1,(yMax-yMin)*.16);
     const lower=yMin-margin,upper=yMax+margin;
@@ -327,6 +348,22 @@ function cardioNightChart(profile){
       a(chart,s("line",{x1:xMin,y1:y,x2:xMax,y2:y,class:"graph-grid"}),
         s("text",{x:xMin-9,y:y+4,"text-anchor":"end",class:"graph-label"},
           nums.length?format(upper-(upper-lower)*j/3,0):"—"));
+    }
+    // Historical reference is drawn first, and never joined across nulls.
+    if(referenceBins.length){
+      let line=[];
+      const commit=()=>{
+        if(line.length>1)
+          a(chart,s("path",{class:"cardio-reference-line",
+            d:line.map(([x,y],j)=>(j?"L":"M")+x.toFixed(1)+" "+y.toFixed(1)).join(" ")}));
+        line=[];
+      };
+      referenceBins.forEach(b=>{
+        const value=num(b[metric.field]);
+        if(value===null){commit();return;}
+        line.push([xOf(b.elapsed_minutes+15),yOf(value)]);
+      });
+      commit();
     }
     let points=[];
     const flush=()=>{
@@ -361,6 +398,10 @@ function cardioNightChart(profile){
       "+"+format(minutes/60,0)+"h"));
   }
   a(box,chart);
+  const legendBox=e("div","cardio-comparison-legend");
+  a(legendBox,e("span","cardio-legend-current","Notte selezionata"));
+  if(mode!=="none")a(legendBox,e("span","cardio-legend-ref",referenceTitle));
+  a(box,legendBox);
   const note=e("p","coverage-description",
     "Asse comune: tempo dall'inizio della sessione a letto. Ogni punto è la mediana di 30 minuti con almeno 4 campioni validi; le lacune restano vuote.");
   a(box,note);
@@ -397,18 +438,56 @@ function cardioNightChart(profile){
     a(infos,tile);
   });
   a(box,infos);
+  if(ctx.deltas){
+    const compare=panel("cardio-compare-summary");
+    a(compare,e("h4","","Differenze rispetto al riferimento"));
+    const refType=mode==="week"?"previous_7":"previous_day";
+    const refName=mode==="week"?"settimana precedente":mode==="previous"?"notte precedente":"";
+    if(mode==="none"){
+      a(compare,e("p","coverage-description","Scegli un riferimento per vedere differenze e copertura."));
+    }else{
+      [["heart_rate_bpm","FC","bpm"],["hrv_ms","HRV","ms"]].forEach(([key,label,unit])=>{
+        const record=ctx.deltas[key]?.[refType],line=e("div","cardio-compare-line");
+        const delta=num(record?.median_delta);
+        a(line,e("span","",label+" · "+refName),
+          e("strong","",delta===null?"Confronto insufficiente":
+            (delta>0?"+":"")+format(delta,1)+" "+unit),
+          e("small","",(record?.paired_bins||0)+" intervalli appaiati"));
+        a(compare,line);
+      });
+    }
+    a(box,compare);
+  }
+  if(ctx.selected_halves){
+    const halves=panel("cardio-compare-summary");
+    a(halves,e("h4","","Prima metà vs seconda metà della notte"));
+    [["heart_rate_bpm","FC","bpm"],["hrv_ms","HRV","ms"]].forEach(([key,label,unit])=>{
+      const h=ctx.selected_halves[key]||{},delta=num(h.second_minus_first);
+      const line=e("div","cardio-compare-line");
+      a(line,e("span","",label+" · seconda meno prima"),
+        e("strong","",delta===null?"Dati insufficienti":(delta>0?"+":"")+format(delta,1)+" "+unit),
+        e("small","",(h.first_half_valid_bins||0)+" / "+(h.second_half_valid_bins||0)+" intervalli validi"));
+      a(halves,line);
+    });
+    a(halves,e("p","coverage-description",
+      "Il confronto riguarda le metà del tempo a letto, non le fasi del sonno. Non indica da solo il recupero."));
+    a(box,halves);
+  }
   const details=e("details","cardio-tabular"),
     summary=e("summary","","Tabella accessibile di tutti gli intervalli");
   a(summary,icon("chevron"));
   const tbl=e("table","feature-table"),thead=e("thead"),row=e("tr");
-  ["Da inizio notte","HR (bpm)","HRV (ms)"].forEach(v=>a(row,e("th","",v)));
+  ["Da inizio notte","HR (bpm)","HRV (ms)",mode==="none"?"Riferimento":"HR rif. (bpm)",
+   mode==="none"?"—":"HRV rif. (ms)"].forEach(v=>a(row,e("th","",v)));
   a(thead,row);a(tbl,thead);
   const tbody=e("tbody");
-  bins.forEach(bin=>{
-    const tr=e("tr");
+  bins.forEach((bin,i)=>{
+    const tr=e("tr"),reference=referenceBins[i]||{};
     a(tr,e("td","", "+"+format(bin.elapsed_minutes,0)+" min"),
       e("td","",num(bin.heart_rate_bpm)===null?"—":format(bin.heart_rate_bpm,1)+" (n="+bin.heart_rate_bpm_n+")"),
-      e("td","",num(bin.hrv_ms)===null?"—":format(bin.hrv_ms,1)+" (n="+bin.hrv_ms_n+")"));
+      e("td","",num(bin.hrv_ms)===null?"—":format(bin.hrv_ms,1)+" (n="+bin.hrv_ms_n+")"),
+      e("td","",num(reference.heart_rate_bpm)===null?"—":format(reference.heart_rate_bpm,1)),
+      e("td","",num(reference.hrv_ms)===null?"—":format(reference.hrv_ms,1)));
     a(tbody,tr);
   });
   a(tbl,tbody);a(details,tbl);a(box,details);

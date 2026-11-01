@@ -53,6 +53,8 @@ def audit(db: Path, *, days: int = 65, today: date | None = None) -> dict:
     rows = 0
     valid_main = 0
     invalid_json = 0
+    paired_valid_days = set()
+    paired_prototype_days = set()
     summary = {
         name: {
             "present_nights": 0, "missing_nights": 0,
@@ -66,11 +68,11 @@ def audit(db: Path, *, days: int = 65, today: date | None = None) -> dict:
     connection = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
         cursor = connection.execute(
-            "SELECT payload FROM records WHERE collection='sleep' "
+            "SELECT day, payload FROM records WHERE collection='sleep' "
             "AND day BETWEEN ? AND ? LIMIT ?",
             (since.isoformat(), today.isoformat(), MAX_RECORDS + 1),
         )
-        for (raw,) in cursor:
+        for day, raw in cursor:
             rows += 1
             if rows > MAX_RECORDS:
                 raise ValueError("Too many sleep records for bounded audit.")
@@ -85,6 +87,8 @@ def audit(db: Path, *, days: int = 65, today: date | None = None) -> dict:
             if item.get("type") != "long_sleep":
                 continue
             valid_main += 1
+            paired_basic = {}
+            paired_strict = {}
             for field in CHANNELS:
                 stats = summary[field]
                 sample = item.get(field)
@@ -135,6 +139,15 @@ def audit(db: Path, *, days: int = 65, today: date | None = None) -> dict:
                 count = len(values)
                 size_band = "0" if count == 0 else "1-48" if count <= 48 else "49-144" if count <= 144 else "145+"
                 stats["sample_count_bucket"][size_band] += 1
+                # Engineering readiness only, NOT a validated physiological threshold.
+                paired_basic[field] = interval_class == "300s" and n_valid >= 4
+                paired_strict[field] = interval_class == "300s" and n_valid >= 24 and share >= .75
+            # Day IDs are used only in memory to deduplicate sleep sessions.
+            # No individual dates are exported or logged.
+            if all(paired_basic.get(name, False) for name in CHANNELS):
+                paired_valid_days.add(day)
+            if all(paired_strict.get(name, False) for name in CHANNELS):
+                paired_prototype_days.add(day)
     finally:
         connection.close()
     return {
@@ -143,6 +156,10 @@ def audit(db: Path, *, days: int = 65, today: date | None = None) -> dict:
         "sleep_records_checked": rows,
         "long_sleep_sessions_checked": valid_main,
         "invalid_json_records": invalid_json,
+        "paired_schema_valid_days": len(paired_valid_days),
+        "paired_high_coverage_days": len(paired_prototype_days),
+        "prototype_gate": ("ready" if len(paired_prototype_days) >= 7 else
+                           "limited" if paired_prototype_days else "insufficient"),
         "channels": {
             field: {key: dict(value) if isinstance(value, Counter) else value
                     for key, value in summary[field].items()}
@@ -153,6 +170,8 @@ def audit(db: Path, *, days: int = 65, today: date | None = None) -> dict:
             "The report counts main sleep sessions, not distinct days.",
             "It is possible for a field to exist but contain no useful samples.",
             "Coverage fractions describe Oura exported samples, not ECG validation.",
+            "Prototype gate is an engineering check (>=24 valid samples in each channel per day, >=75% coverage, 300-second interval); not a clinical threshold.",
+            "Ready requires >=7 distinct qualifying days in the requested window; limited means 1-6, insufficient means zero.",
         ],
     }
 
@@ -182,6 +201,7 @@ def main(argv=None):
         # Only categorical readiness, never counts / dates / sample values in CI logs.
         ready = all(result["channels"][name]["schema_valid_nights"] > 0 for name in CHANNELS)
         print("Cardio series audit: " + ("both_channels_present" if ready else "missing_or_invalid_channels"))
+        print("Cardio prototype gate: " + result["prototype_gate"])
         print("Private audit saved locally; physiological values were not printed.")
         return 0
     except (OSError, sqlite3.Error, ValueError) as exc:

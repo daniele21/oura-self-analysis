@@ -390,7 +390,8 @@ function cardioNightChart(profile){
     const tile=e("div","cardio-quality");
     a(tile,e("strong","",name+" · "+q.qualified_bins+"/"+q.total_bins+" intervalli"),
       e("span","",q.status==="ok"?
-        format(q.valid_sample_fraction*100,0)+"% campioni validi nel dato esportato":
+        (num(q.full_night_coverage_fraction)===null?"Copertura non calcolabile":
+         format(q.full_night_coverage_fraction*100,0)+"% della notte campionata"):
         q.status==="missing"?"Serie non disponibile":
         "Formato o frequenza non standard: curva non interpretata"));
     a(infos,tile);

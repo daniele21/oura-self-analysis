@@ -64,6 +64,8 @@ class NightProfilesTests(unittest.TestCase):
         self.assertNotIn("2026-10-31T23:00:00", json.dumps(result))
         self.assertEqual(result["bin_minutes"], 30)
         self.assertEqual(result["channels"]["heart_rate"]["valid_samples"], 11)
+        self.assertEqual(result["channels"]["heart_rate"]["full_night_expected_samples"], 96)
+        self.assertEqual(result["channels"]["heart_rate"]["full_night_coverage_fraction"], .115)
 
     def test_utc_alignment_shift_not_index(self):
         hr = self.series([50]*12, "2026-10-31T23:00:00+01:00")

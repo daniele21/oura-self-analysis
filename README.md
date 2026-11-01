@@ -110,6 +110,14 @@ The script will upload `daily_enriched.csv`, `health_features.csv`, `health_insi
 
 **Backfill:** for 30 days of health features and a complete earlier non-overlapping 28-day baseline even for the earliest reported day, import **65 days** once with `oura_self_analysis.py sync --days 65 --collections daily_sleep,sleep,daily_readiness,daily_activity,workout`. Existing OAuth authorization and Keychain tokens can be reused.
 
+### Cardiovascular Intelligence — night profiles (M1)
+
+The **Recupero** section now has aligned HR and HRV night curves for the chosen main sleep night. A new read-only local endpoint `/api/v2/recovery/night?day=YYYY-MM-DD` reads **only one overnight long_sleep session** and returns privacy-minimized 30-minute median bins for both channels, with missing bins blank. The browser can explore both values with a synchronized keyboard-friendly slider or a tabular alternative.
+
+Bins are shown only if they contain at least 4 valid nominal five-minute samples, using an actual UTC timeline derived from the Oura PublicSample timestamps, with timezone/DST awareness and independent channel alignment. Per-channel full-night coverage is reported and a partial night never pretends to be 100% complete. Interpretation remains descriptive; no clinical predictions or invented recovery scores.
+
+The feature is **local only** and uses already authorized `sleep` data: no new OAuth scopes, remote models, record-level identifiers, additional raw-data disk storage or GitHub health logs. The browser can request at most one of the latest 90 nights per query. Technical details and limitations are in [M1 methodology](docs/m1-night-cardiovascular-profile.md). The existing summary API remains backward compatible.
+
 ### Sleep Intelligence 2.0 (v1.3)
 
 The **Sonno** tab offers three linked views, driven by real, local Oura API V2 sleep data:

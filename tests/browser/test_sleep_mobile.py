@@ -44,9 +44,16 @@ def run(base: str, out: Path):
                          body:document.body.scrollWidth,
                          stage:document.querySelector('.sleep-stage-hero').getBoundingClientRect().width
                     })""")
+                    if width_report["document"]>width+1:
+                        offenders=page.evaluate("""() => [...document.querySelectorAll('body *')]
+                          .map(el => ({tag:el.tagName, cls:String(el.className?.baseVal||el.className||'').slice(0,80),
+                                      right:Math.round(el.getBoundingClientRect().right),
+                                      width:Math.round(el.getBoundingClientRect().width)}))
+                          .filter(x => x.right>window.innerWidth+2).sort((a,b)=>b.right-a.right).slice(0,16)""")
+                        print("SYNTHETIC overflow culprits:",offenders,flush=True)
+                    page.screenshot(path=str(out/f"sonno-compare-{width}.png"),full_page=True)
                     assert width_report["document"] <= width+1, (
                         f"horizontal page scroll at {width}px: {width_report}")
-                    page.screenshot(path=str(out/f"sonno-compare-{width}.png"),full_page=True)
                     # Switching modes must retain focus even after DOM replacement.
                     composition=page.get_by_role("button",name="Composizione")
                     composition.click()

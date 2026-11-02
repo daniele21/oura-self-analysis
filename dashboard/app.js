@@ -1275,9 +1275,9 @@ function comparisonProfile(data,group,comparison,metric){
       needed:comparison.recent_days+comparison.reference_days<=30?30:90};
   }
   const value=d=>num(byDay.get(d)?.[metric.key]);
-  const aggregate=vals=>{
+  const aggregate=(vals,minimum=1)=>{
     const v=vals.filter(x=>x!==null);
-    if(!v.length)return null;
+    if(v.length<minimum)return null;
     if(metric.aggregate==="median"){
       const sorted=v.slice().sort((a,b)=>a-b),n=sorted.length;
       return n%2?sorted[(n-1)/2]:(sorted[n/2-1]+sorted[n/2])/2;
@@ -1291,12 +1291,12 @@ function comparisonProfile(data,group,comparison,metric){
     description="Notti allineate per giorno della settimana. Ogni punto è una notte misurata.";
   }else if(comparison.recent_days===7&&comparison.reference_days===28){
     recent=recentDates.map(value);
-    previous=Array.from({length:7},(_,i)=>aggregate([0,1,2,3].map(w=>value(previousDates[w*7+i]))));
+    previous=Array.from({length:7},(_,i)=>aggregate([0,1,2,3].map(w=>value(previousDates[w*7+i])),2));
     labels=recentDates.map(d=>new Intl.DateTimeFormat("it-IT",{weekday:"short",timeZone:"UTC"}).format(parseDay(d)));
     description="La linea di riferimento mostra, per ogni giorno della settimana, l'aggregato di quattro settimane (se osservate); la linea recente mostra singole notti.";
   }else{
-    recent=Array.from({length:4},(_,i)=>aggregate(recentDates.slice(i*7,(i+1)*7).map(value)));
-    previous=Array.from({length:4},(_,i)=>aggregate(previousDates.slice(i*7,(i+1)*7).map(value)));
+    recent=Array.from({length:4},(_,i)=>aggregate(recentDates.slice(i*7,(i+1)*7).map(value),4));
+    previous=Array.from({length:4},(_,i)=>aggregate(previousDates.slice(i*7,(i+1)*7).map(value),4));
     labels=["Sett. 1","Sett. 2","Sett. 3","Sett. 4"];
     description="Quattro blocchi settimanali consecutivi per periodo, allineati per posizione e non per data assoluta.";
   }

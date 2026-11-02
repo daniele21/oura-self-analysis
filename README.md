@@ -6,13 +6,14 @@ Personal Oura Ring data pipeline: **Oura API → local SQLite → local determin
 
 Oura Insights is undergoing a staged UX/UI redesign guided by [the source-code audit](docs/ux-audit-2026-11-02.md), [the proposed design system](docs/design-system-v1.md) and [the implementation roadmap](docs/ux-redesign-roadmap.md). The actual layout redesign is **not yet released**.
 
-Project coding agents start with [AGENTS.md](AGENTS.md) and three repo-local, vendor-neutral Agent Skills:
+Project coding agents start with [AGENTS.md](AGENTS.md) and four repo-local, vendor-neutral Agent Skills, coordinated by the [multi-source synthesis](docs/design-skill-synthesis.md):
 
+- [oura-design-director](.agents/skills/oura-design-director/SKILL.md): merges public design methods, evaluates three visual directions, orchestrates independent critique and release gates
 - [oura-product-design](.agents/skills/oura-product-design/SKILL.md): information architecture, visual direction, mobile interaction and screen hierarchy
 - [oura-health-charts](.agents/skills/oura-health-charts/SKILL.md): faithful plots, comparative windows, missingness and valid sample coverage
 - [oura-visual-qa](.agents/skills/oura-visual-qa/SKILL.md): synthetic-only responsive, keyboard and accessibility verification before frontend releases
 
-Reference skills (Anthropic frontend-design, Vercel web-design-guidelines and others) are evaluated in the audit but **not blindly installed or executed**. Real Oura readings must not be used in CI screenshots, hosted design tools, public PRs or LLM prompts.
+Eight original public sources (Anthropic, Impeccable, Taste Skill, UI UX Pro Max, Vercel, mae616 and webapp-testing) have been reviewed and attributed in the synthesis, with their transferable methods merged into our four project skills. **The upstream scripts, binaries, hooks, assets and skill bodies have not been installed or vendored.** Real Oura readings must not be used in CI screenshots, hosted design tools, public PRs or LLM prompts.
 
 ## Mobile dashboard — Oura Insights
 

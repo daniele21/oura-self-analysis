@@ -105,6 +105,43 @@ class TestPeriodComparisons(unittest.TestCase):
         self.assertIsNone(clock["persistence"])
         self.assertIsNone(clock["delta_percent"])
 
+
+    def test_recent_tail_exposes_opposed_weekly_and_last_three_directions(self):
+        rows = make_rows()
+        for row in rows:
+            lag = (END - date.fromisoformat(row["day"])).days
+            if lag < 3:
+                row["sleep_minutes"] = 360
+                row["hrv_ms"] = 20
+            elif lag < 7:
+                row["sleep_minutes"] = 500
+                row["hrv_ms"] = 50
+            elif lag < 14:
+                row["sleep_minutes"] = 400
+                row["hrv_ms"] = 30
+        sleep = pc.build(rows, today=END, group="sleep")
+        weekly = metric(sleep, "7v7", "sleep_minutes")
+        tail = next(m for m in sleep["recent_week_trajectory"]["metrics"]
+                    if m["key"] == "sleep_minutes")
+        self.assertGreater(weekly["delta"], 0)
+        self.assertEqual(tail["delta"], -140)
+        self.assertTrue(tail["opposes_weekly_comparison"])
+        self.assertEqual(tail["latest_three"]["valid_nights"], 3)
+        recovery = pc.build(rows, today=END, group="recovery")
+        hr_tail = next(m for m in recovery["recent_week_trajectory"]["metrics"]
+                       if m["key"] == "hrv_ms")
+        self.assertEqual(hr_tail["delta"], -30)
+        self.assertTrue(hr_tail["opposes_weekly_comparison"])
+
+    def test_missing_last_three_night_suppresses_short_trajectory(self):
+        rows = make_rows()
+        rows = [r for r in rows if r["day"] != dated(1)]
+        report = pc.build(rows, today=END, group="sleep")
+        tail = next(m for m in report["recent_week_trajectory"]["metrics"]
+                    if m["key"] == "sleep_minutes")
+        self.assertIsNone(tail["delta"])
+        self.assertIsNone(tail["opposes_weekly_comparison"])
+
     def test_older_daily_data_not_leaked_in_comparison_payload(self):
         report=pc.build(make_rows(),today=END,group="sleep")
         content=json.dumps(report)
@@ -155,6 +192,22 @@ class TestIntegratedDashboard(unittest.TestCase):
             # Older individual days (8..56) are not listed in day-level sections.
             self.assertNotIn(dated(40),json.dumps(payload["records"]))
             self.assertNotIn(dated(40),json.dumps(payload["sleep_intelligence"]["nights"]))
+            # Three-day sync lag must not convert the 7d recent HRV window
+            # into three valid records out of seven; anchor to the last night.
+            stale = dashboard_server.make_payload(
+                db, days=7, today=END + timedelta(days=3))
+            self.assertEqual(stale["period_comparisons"]["as_of_day"], END.isoformat())
+            self.assertEqual(
+                stale["sleep_intelligence"]["comparisons"]["as_of_day"],
+                END.isoformat())
+            self.assertEqual(
+                metric(stale["period_comparisons"], "7v28", "hrv_ms")["delta"], -15)
+            self.assertEqual(
+                metric(stale["sleep_intelligence"]["comparisons"], "7v7", "sleep_minutes")["delta"], 60)
+            # Browser only sees the selected seven calendar days; earlier
+            # individual Oura records remain hidden in both cases.
+            self.assertLessEqual(len(stale["records"]), 7)
+            self.assertNotIn(dated(10), json.dumps(stale["records"]))
 
 
 if __name__=="__main__":

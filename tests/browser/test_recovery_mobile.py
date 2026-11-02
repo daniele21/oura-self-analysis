@@ -57,7 +57,10 @@ def check(base: str, output: Path, scenario: str) -> None:
                             const scale = area.width / svg.viewBox.baseVal.width;
                             svg.querySelectorAll('.recovery-chart-label').forEach(label => {
                               const box = label.getBoundingClientRect();
-                              const px = parseFloat(getComputedStyle(label).fontSize) * scale;
+                              const style = getComputedStyle(label);
+                              const px = parseFloat(style.fontSize) * scale;
+                              if (style.stroke !== 'none' && style.stroke !== 'rgba(0, 0, 0, 0)')
+                                results.push({i, label:label.textContent, issue:'axis text stroked'});
                               if (box.left < area.left - 1 || box.right > area.right + 1)
                                 results.push({i, label:label.textContent, issue:'label clipped'});
                               if (px < 11) results.push({i, label:label.textContent, issue:'small axis', px});

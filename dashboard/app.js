@@ -1678,7 +1678,7 @@ function sleepView(data){
   const wrap=e("div"),tools=e("div","trend-toolbox");
   a(tools,e("span","section-subtitle","Esplora 7, 30 o 90 giorni"),
     segment([7,30,90],state.days,n=>load(n)));
-  a(wrap,tools,periodComparisonView(data,"sleep"),sleepStageChart(data),sleepWeekly(data),sleepDaily(data),
+  a(wrap,tools,sleepStageChart(data),periodComparisonView(data,"sleep"),sleepWeekly(data),sleepDaily(data),
     hint("Le analisi descrivono variazioni personali, non diagnosticano disturbi del sonno. L'assenza di dati non significa assenza di sonno.","shield"));
   return wrap;
 }

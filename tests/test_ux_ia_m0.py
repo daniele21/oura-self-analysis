@@ -35,6 +35,21 @@ class TestMobileInformationArchitecture(unittest.TestCase):
         for tabs in parser.nav_tabs.values():
             self.assertNotIn("trends",tabs)
 
+    def test_stage_period_overlays_have_three_panels_and_no_silent_scope_expansion(self):
+        code=(ROOT/"dashboard/app.js").read_text()
+        self.assertIn("function sleepPhaseCompare(report,data)",code)
+        self.assertIn("function sleepPhaseOverlayPanel(phase,comparison,unit,markers)",code)
+        self.assertIn('["compare","Confronta periodi"]',code)
+        self.assertIn('["7v7","Ultimi 7 vs 7 precedenti"]',code)
+        self.assertIn('["30v30","Ultimi 30 vs 30 precedenti"]',code)
+        self.assertIn("period-expand",code)
+        self.assertIn('sleepPhaseCompare(report,data)',code)
+        self.assertIn('PHASES.forEach(p=>a(panels,sleepPhaseOverlayPanel(',code)
+        self.assertIn('trace(bRows,"reference");trace(aRows,"recent")',code)
+        self.assertIn('sleep-overlay-line "+type',code)
+        self.assertIn('Tabella accessibile dei periodi',code)
+        self.assertIn('aria-label","Scegli il giorno corrispondente',code)
+
     def test_sleep_phase_chart_exposes_both_views_and_units(self):
         code=(ROOT/"dashboard/app.js").read_text()
         self.assertIn("function sleepStageChart(data)",code)

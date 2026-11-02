@@ -476,3 +476,12 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
   .period-table {font-size:11px}
   .period-compare {gap:12px}
 }
+
+/* Editorial review: compact contextual links, never clinical alerts. */
+.priority-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.priority-review-card{display:flex;flex-direction:column;gap:12px;padding:23px}
+.priority-review-label{font-size:10px;letter-spacing:1.1px;font-weight:770;color:var(--muted)}
+.priority-review-title{font-size:16px;line-height:1.35;letter-spacing:-.3px;margin:0}
+.priority-review-copy{font-size:13px;color:var(--text);line-height:1.6;margin:0}
+.priority-review-card .ghost-link{align-self:flex-start;margin-top:5px}
+@media(max-width:730px){.priority-review-grid{grid-template-columns:1fr}.priority-review-card{padding:18px}}

@@ -1106,10 +1106,10 @@ function sleepPhaseOverlayPanel(phase,comparison,unit,markers){
     compact("B · precedente",shown(bv),"reference"),
     compact("A − B",shownDelta,"delta"));
   a(metric,title,row);a(wrap,metric);
-  // Render using a compact *physical* viewBox on narrow panels; a 720px
-  // SVG shrunk to 270px makes axis labels illegible even when layout fits.
+  // Keep physical SVG axis text readable at 320px and in desktop small multiples.
+  // A wide viewBox shrunk into a narrow card makes its 15px font render at ~10px.
   const midWidth=window.matchMedia("(min-width:600px) and (max-width:999px)").matches;
-  const W=midWidth?640:360,H=midWidth?216:190,L=midWidth?52:45,R=13,T=15,B=34;
+  const W=midWidth?640:270,H=midWidth?216:178,L=midWidth?52:48,R=midWidth?13:11,T=15,B=33;
   const plotWidth=W-L-R,plotHeight=H-T-B;
   const get=(x)=>num(x?.[phase.key+"_"+unit]);
   const values=[...aRows.map(get),...bRows.map(get)].filter(v=>v!==null);
@@ -1125,7 +1125,9 @@ function sleepPhaseOverlayPanel(phase,comparison,unit,markers){
     const value=maxY*i/3,y=yOf(value);
     a(svg,s("line",{x1:L,y1:y,x2:W-R,y2:y,class:"sleep-phase-grid"}),
       s("text",{x:L-7,y:y+4,"text-anchor":"end",class:"sleep-phase-axis"},
-        format(value,0)+(i===3?" "+suffix:"")));
+        // Units are announced by the selected Minutes / Percentage control;
+        // putting "300 min" on a compact Y tick clipped the first glyphs.
+        format(value,0)));
   }
   const labels=[0,Math.floor((aRows.length-1)/2),aRows.length-1];
   [...new Set(labels)].forEach(i=>{

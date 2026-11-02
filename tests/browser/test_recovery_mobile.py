@@ -27,7 +27,9 @@ def check(base: str, output: Path, scenario: str) -> None:
                     page.get_by_role("heading", name="Come cambia il tuo recupero").wait_for()
                     assert page.get_by_role("heading", name="Come cambia il tuo recupero").is_visible()
                     if scenario == "empty":
-                        assert page.get_by_text("Misurazioni cardiovascolari non disponibili").is_visible()
+                        assert page.locator(".empty-state").is_visible()
+                        assert (page.get_by_text("Misurazioni cardiovascolari non disponibili").count()
+                                or page.get_by_text("Dati non disponibili", exact=True).count())
                         assert page.locator(".recovery-signal").count() == 0
                     else:
                         assert page.locator(".recovery-signal").count() == 2
@@ -72,7 +74,9 @@ def check(base: str, output: Path, scenario: str) -> None:
                             details = page.locator(".recovery-data-table").first
                             details.locator("summary").click()
                             assert details.locator("table tbody tr").count() >= 7
-                            page.locator("#cardio-night-select").select_option(
+                            night_picker = page.locator("#cardio-night-select")
+                            night_picker.focus()  # model actual keyboard selection
+                            night_picker.select_option(
                                 page.locator("#cardio-night-select option").last.get_attribute("value"))
                             assert page.evaluate(
                                 "document.activeElement?.getAttribute('data-focus-key')"

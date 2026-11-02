@@ -4,6 +4,9 @@ This is a privacy-first, **local-only** Oura Ring analysis and web UI. The Mac m
 
 ## Read first
 
+- For substantial UI/redesign tasks, START with the merged design director: .agents/skills/oura-design-director/SKILL.md
+- Reviewed eight-source synthesis (provenance, accepted/rejected methods): docs/design-skill-synthesis.md
+
 - For visual design, IA, typography or UX: .agents/skills/oura-product-design/SKILL.md
 - For charts, comparative views, sample coverage or health metrics: .agents/skills/oura-health-charts/SKILL.md
 - Before approving or releasing ANY frontend change: .agents/skills/oura-visual-qa/SKILL.md
@@ -28,6 +31,11 @@ These are repo-local Agent Skills following the agentskills.io SKILL.md conventi
 10. **No fake testing claims:** Python/JS syntax checks do not establish visual correctness; a deploy smoke test proves service health, not UX. Visual verification is separate and required for a redesign.
 
 ## Required workflow for UI work
+
+- Apply the design-director eight-pass cycle: user task → three viable directions → explicit weighted choice → component contract → implementation → independent critique/audit → synthetic screenshots and a11y → reviewed deploy.
+- Use Oura-specific skills as specialists; they have precedence over upstream art-direction prompts when physiology, privacy or accessibility would be compromised.
+- Preserve an explicit design decision record per redesigned view. Do not accept an aesthetic score as evidence that an HRV/REM graph is truthful.
+- Keep upstream skills as cited references, not executable repo dependencies; no auto-fetch of mutable Vercel guidelines, third-party scripts or installer hooks.
 
 - Understand the user's job to be done and inspect actual current UI code.
 - Choose page/flow hierarchy and map all states: normal, sparse, missing, stale, loading, failure.

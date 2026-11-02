@@ -615,52 +615,159 @@ function cardioAssociationsView(report){
   return wrap;
 }
 
-function recoveryView(data){
-  const wrap=e("div"),last=data.records[data.records.length-1];
-  const filtered=data.records.filter(row=>num(row.hrv_ms)!==null||num(row.rhr_bpm)!==null);
-  if(!filtered.length)return empty("Misurazioni cardiovascolari non disponibili",
-    "La pagina mostrerà HR e HRV soltanto quando saranno presenti osservazioni notturne valide.","heart");
-  if(!state.sleepDay||!filtered.some(x=>x.day===state.sleepDay)){
-    state.sleepDay=filtered[filtered.length-1].day;
+/* Recupero Observatory: same deterministic summaries, lower cognitive load.
+   The charts never expand the date-level API window selected by the user. */
+function recoveryTimeline(data,metric,baseline){
+  const dates=daysArray(data.range.days,data.range.end);
+  const rows=new Map(data.records.map(record=>[record.day,record]));
+  const values=dates.map(day=>num(rows.get(day)?.[metric.key]));
+  const usable=values.filter(v=>v!==null);
+  const wrap=e("div","recovery-timeline");
+  if(!usable.length){
+    a(wrap,e("p","recovery-missing","Nessuna notte con "+metric.label+" nella finestra selezionata."));
+    return wrap;
   }
+  const tablet=window.matchMedia("(min-width:600px) and (max-width:999px)").matches;
+  const W=tablet?540:260,H=165,L=39,R=10,T=13,B=30;
+  const plotted=baseline===null?usable:[...usable,baseline];
+  const minimum=Math.min(...plotted),maximum=Math.max(...plotted);
+  const padding=Math.max(metric.key==="hrv_ms"?2:1,(maximum-minimum)*.17);
+  const lower=minimum-padding,upper=maximum+padding;
+  const width=W-L-R, height=H-T-B;
+  const x=i=>L+(dates.length===1?width/2:i/(dates.length-1)*width);
+  const y=v=>T+(upper-v)/(upper-lower)*height;
+  const chart=s("svg",{viewBox:"0 0 "+W+" "+H,class:"recovery-timeline-svg",role:"img",
+    "aria-label":metric.label+" in "+metric.unit+": notti osservate nei "+data.range.days+
+      " giorni selezionati, senza interpolare dati mancanti"});
+  a(chart,s("title",{},metric.label+" · misurazioni osservate e baseline personale"));
+  for(let i=0;i<3;i++){
+    const value=upper-(upper-lower)*i/2,yy=y(value);
+    a(chart,s("line",{x1:L,y1:yy,x2:W-R,y2:yy,class:"recovery-chart-grid"}),
+      s("text",{x:L-7,y:yy+4,"text-anchor":"end",class:"recovery-chart-label"},format(value,0)));
+  }
+  if(baseline!==null){
+    a(chart,s("line",{x1:L,y1:y(baseline),x2:W-R,y2:y(baseline),class:"recovery-chart-baseline"}));
+  }
+  let run=[];
+  function flush(){
+    if(run.length>=2)a(chart,s("path",{d:run.map(([xx,yy],i)=>
+      (i?"L":"M")+xx.toFixed(1)+" "+yy.toFixed(1)).join(" "),
+      class:"recovery-chart-line"}));
+    run=[];
+  }
+  values.forEach((value,i)=>{
+    if(value===null){flush();return;}
+    run.push([x(i),y(value)]);
+    if(data.range.days<=14||i%5===0){
+      const point=s("circle",{cx:x(i),cy:y(value),r:2.5,class:"recovery-chart-point"});
+      a(point,s("title",{},fullDate(dates[i])+" · "+format(value,1)+" "+metric.unit));
+      a(chart,point);
+    }
+  });
+  flush();
+  [0,dates.length-1].forEach(i=>a(chart,s("text",{
+    x:x(i),y:H-7,class:"recovery-chart-label",
+    "text-anchor":i===0?"start":"end"
+  },shortDate(dates[i]))));
+  a(wrap,chart);
+  const legend=e("div","recovery-chart-legend");
+  a(legend,e("span","recovery-legend-observed","Notti osservate"));
+  if(baseline!==null)a(legend,e("span","recovery-legend-baseline","Baseline 28g"));
+  a(wrap,legend);
+  const disclosure=e("details","recovery-data-table");
+  a(disclosure,e("summary","","Consulta i valori giornalieri · "+usable.length+"/"+dates.length+" notti"));
+  const table=e("table","feature-table"),caption=e("caption","",metric.label+" · "+metric.unit);
+  const head=e("thead"),row=e("tr");
+  ["Data del risveglio",metric.label+" ("+metric.unit+")"].forEach(v=>a(row,e("th","",v)));
+  a(head,row);a(table,caption,head);
+  const body=e("tbody");
+  dates.forEach((day,i)=>a(body,a(e("tr"),e("td","",fullDate(day)),
+    e("td","",values[i]===null?"—":format(values[i],1)))));
+  a(table,body);a(disclosure,table);a(wrap,disclosure);
+  return wrap;
+}
+function recoverySignalCard(data,key,report){
+  const metric=report?.windows?.["7v28"]?.metrics?.find(m=>m.key===key);
+  const descriptor=key==="hrv_ms"?
+    {name:"Variabilità cardiaca",abbr:"HRV",unit:"ms",symbol:"heart",tone:"hrv"}:
+    {name:"Frequenza cardiaca minima notturna",abbr:"FC minima",unit:"bpm",symbol:"activity",tone:"hr"};
+  const card=e("article","recovery-signal "+descriptor.tone);
+  const heading=e("div","recovery-signal-heading");
+  a(heading,e("span","recovery-signal-tag",descriptor.abbr),
+    e("h2","",descriptor.name));
+  const recent=metric?.recent,reference=metric?.reference;
+  const isValid=metric?.status==="available"&&num(recent?.value)!==null&&num(reference?.value)!==null;
+  const value=isValid?comparisonValue(recent.value,metric.unit):"—";
+  const delta=isValid&&num(metric.delta)!==null?
+    (metric.delta>0?"+":"")+comparisonValue(metric.delta,metric.unit):"—";
+  const line=e("div","recovery-signal-value");
+  a(line,e("strong","",value),e("span","",isValid?"Mediana ultime 7 notti di calendario":"Dati insufficienti per la mediana"));
+  const comparison=e("div","recovery-signal-comparison");
+  a(comparison,a(e("div"),e("span","","Baseline 28 giorni precedenti"),
+    e("strong","",num(reference?.value)!==null?comparisonValue(reference.value,metric?.unit||descriptor.unit):"—")),
+    a(e("div"),e("span","","Differenza rispetto alla baseline"),
+      e("strong","",delta)));
+  const count=e("p","recovery-signal-coverage",
+    "Copertura · recente "+(recent?.valid_nights??0)+"/"+(recent?.calendar_days??7)+
+    " notti · riferimento "+(reference?.valid_nights??0)+"/"+(reference?.calendar_days??28)+" notti");
+  const displayedBaseline=num(reference?.value);
+  a(card,heading,line,comparison,count,recoveryTimeline(data,
+    {key,label:descriptor.abbr,unit:descriptor.unit},displayedBaseline));
+  return card;
+}
+function recoveryView(data){
+  const filtered=data.records.filter(row=>num(row.hrv_ms)!==null||num(row.rhr_bpm)!==null);
+  const wrap=e("div","recovery-dashboard");
+  const report=data.period_comparisons;
+  const asOf=report?.as_of_day||filtered[filtered.length-1]?.day||null;
+  const latest=filtered[filtered.length-1]?.day||null;
+  const intro=e("header","recovery-overview");
+  a(intro,e("p","recovery-kicker","Osserva · Confronta · Approfondisci"),
+    e("h1","recovery-main-title","Come cambia il tuo recupero"),
+    e("p","recovery-main-description",
+      "HRV e frequenza cardiaca minima notturna, confrontate con la tua storia. Non sono indicatori clinici di recupero."));
+  const facts=e("div","recovery-context");
+  a(facts,a(e("div","recovery-context-fact"),e("span","","Ultima notte disponibile"),
+    e("strong","",latest?fullDate(latest):"Non disponibile")),
+    a(e("div","recovery-context-fact"),e("span","","Confronti aggiornati al"),
+      e("strong","",asOf?fullDate(asOf):"Non disponibile")));
+  a(wrap,intro,facts);
+  if(!filtered.length){
+    a(wrap,empty("Misurazioni cardiovascolari non disponibili",
+      "Serve almeno una notte con HRV o frequenza cardiaca valida per esplorare il recupero.","heart"));
+    return wrap;
+  }
+  if(!state.sleepDay||!filtered.some(x=>x.day===state.sleepDay))
+    state.sleepDay=latest;
   const current=filtered.find(x=>x.day===state.sleepDay);
-  const head=section(),stats=e("div","cards-grid");
-  a(head,heading("La tua fisiologia recente","7 giorni vs i 28 precedenti"));
-  const hrvLast=last&&num(last.hrv_median_7d)!==null?last.hrv_median_7d:null;
-  const hrLast=last&&num(last.rhr_median_7d)!==null?last.rhr_median_7d:null;
-  a(stats,
-    statCard("HRV · mediana 7 giorni",format(hrvLast),"ms",
-      "Baseline precedenti 28 giorni: "+format(last?.hrv_median_previous_28d)+" ms",
-      "heart"),
-    statCard("FC minima · mediana 7 giorni",format(hrLast),"bpm",
-      "Baseline precedenti 28 giorni: "+format(last?.rhr_median_previous_28d)+" bpm",
-      "activity","blue"));
-  a(head,stats);
-  a(head,hint("Il selettore 7/30/90 cambia solo il periodo del grafico. Il confronto fisiologico utilizza sempre gli ultimi 7 giorni contro i 28 precedenti, senza sovrapposizioni."));
-  a(wrap,head,periodComparisonView(data,"recovery"));
-  const trends=section();
-  a(trends,heading("L'andamento nel tempo","Misurazioni giornaliere"));
-  a(trends,trendsView(data));
-  a(wrap,trends);
-  if(data.cardio_context)a(wrap,cardioAssociationsView(data.cardio_context));
-  const night=section(),p=panel(),controls=e("div","sleep-date-picker"),label=e("label","", "Notte selezionata");
+  const range=e("div","recovery-range-bar");
+  a(range,e("span","","Intervallo visualizzato"),segment([7,30,90],state.days,n=>load(n)));
+  a(wrap,range);
+  const hero=e("section","recovery-signals");
+  a(hero,recoverySignalCard(data,"hrv_ms",report),
+    recoverySignalCard(data,"rhr_bpm",report));
+  a(wrap,hero,e("p","recovery-note",
+    "Le curve mostrano solo i giorni della vista selezionata. La baseline rimane la mediana delle 28 notti precedenti, senza sovrapposizioni. Le lacune non sono zeri."));
+  const night=section(),p=panel("recovery-night-panel"),
+    controls=e("div","sleep-date-picker"),label=e("label","", "Notte selezionata");
   label.htmlFor="cardio-night-select";
   const picker=e("select","sleep-select");picker.id="cardio-night-select";
+  picker.setAttribute("data-focus-key","recovery-night-picker");
   [...filtered].reverse().forEach(row=>{
     const opt=e("option","",fullDate(row.day));opt.value=row.day;
     opt.selected=row.day===state.sleepDay;a(picker,opt);
   });
   picker.addEventListener("change",()=>setSelectedNight(picker.value));
   a(controls,label,picker);
-  a(p,subhead("moon","Profilo della notte","Misurazioni aggregate e profilo HR/HRV della notte selezionata"),controls);
+  a(p,subhead("moon","Esplora una notte","HR e HRV in intervalli di 30 minuti, con copertura e lacune visibili"),controls);
   const nightStats=e("div","sleep-night-measures");
   [["HRV media notturna",current.hrv_ms,"ms"],
    ["FC minima notturna",current.rhr_bpm,"bpm"],
    ["Durata del sonno",current.sleep_minutes,"min"],
    ["Frequenza respiratoria",current.respiratory_rate_per_min,"atti/min"]].forEach(([title,value,unit])=>{
-     const tile=e("div","sleep-night-measure");
-     a(tile,e("span","",title),e("strong","",format(value,1)+(num(value)!==null?" "+unit:"")));
-     a(nightStats,tile);
+    const tile=e("div","sleep-night-measure");
+    a(tile,e("span","",title),e("strong","",format(value,1)+(num(value)!==null?" "+unit:"")));
+    a(nightStats,tile);
   });
   a(p,nightStats);
   const profileMount=e("div","cardio-profile-mount");
@@ -671,6 +778,13 @@ function recoveryView(data){
   go.type="button";a(go,icon("arrow"));
   go.addEventListener("click",()=>selectTab("sleep"));
   a(p,go);a(night,p);a(wrap,night);
+  const deeper=e("details","recovery-deeper");
+  const toggle=e("summary","recovery-deeper-toggle");
+  a(toggle,e("span","","Confronti e approfondimenti"),
+    e("small","","7 vs 7 · 7 vs 28 · 28 vs 28 · relazioni esplorative"),icon("chevron"));
+  a(deeper,toggle,periodComparisonView(data,"recovery"));
+  if(data.cardio_context)a(deeper,cardioAssociationsView(data.cardio_context));
+  a(wrap,deeper);
   return wrap;
 }
 function setSelectedNight(day){
@@ -1803,6 +1917,7 @@ function render(){
   const before=document.activeElement?.getAttribute?.("data-focus-key");
   const entry=labels[state.tab];
   document.body.classList.toggle("view-sleep",state.tab==="sleep");
+  document.body.classList.toggle("view-recovery",state.tab==="recovery");
   const name=document.getElementById("page-title");
   name.textContent=entry[0];a(name,e("span","teal-dot","."));
   document.getElementById("page-subtitle").textContent=entry[1];
@@ -1855,6 +1970,8 @@ async function load(days=state.days){
       const fallback=e("div","sleep-dashboard");
       if(state.tab==="sleep")
         a(fallback,e("h1","sleep-main-title","Come cambia il tuo sonno"));
+      if(state.tab==="recovery")
+        a(fallback,e("h1","recovery-main-title","Come cambia il tuo recupero"));
       a(fallback,empty("Dati non disponibili",
         "La dashboard non ha potuto caricare le misurazioni. Controlla il sync Oura sul Mac e riprova.","info"));
       root.replaceChildren(fallback);

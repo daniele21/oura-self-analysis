@@ -684,3 +684,98 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
    grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr)
  }
 }
+
+
+/* Recupero Observatory — independent mobile-first domain, shared privacy-safe shell. */
+.view-recovery {--recov-fg:#eef5f6;--recov-secondary:#b8cad1;--recov-accent:#abe9d0;--recov-blue:#91c7eb;--recov-border:rgba(184,208,215,.17)}
+.view-recovery .page-heading {display:none}
+.view-recovery .main-content {padding-top:16px}
+.recovery-dashboard {display:grid;gap:19px;min-width:0}
+.recovery-overview {display:grid;gap:6px;min-width:0}
+.recovery-kicker {color:var(--recov-accent);font-size:12px;letter-spacing:.025em;font-weight:680;margin:0}
+.recovery-main-title {font-size:clamp(27px,5vw,38px);line-height:1.14;letter-spacing:-1.15px;color:var(--recov-fg);font-weight:760;margin:0}
+.recovery-main-description {font-size:14px;line-height:1.55;color:var(--recov-secondary);margin:0;max-width:65ch}
+.recovery-context {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.recovery-context-fact {display:grid;gap:5px;min-width:0;border-top:1px solid var(--recov-border);padding-top:10px}
+.recovery-context-fact span {font-size:12px;line-height:1.4;color:var(--recov-secondary)}
+.recovery-context-fact strong {font-size:13px;font-weight:700;line-height:1.4;color:var(--recov-fg)}
+.recovery-range-bar {display:grid;gap:9px;min-width:0}
+.recovery-range-bar>span {font-size:12px;color:var(--recov-secondary);font-weight:680}
+.recovery-range-bar .tab-segment {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;max-width:none}
+.recovery-range-bar .tab-segment button {min-height:44px;font-size:13px;padding:10px 3px}
+.recovery-range-bar .tab-segment button.selected {background:#295444;color:#e4faef}
+.recovery-signals {display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}
+.recovery-signal {--recov-series:var(--recov-accent);min-width:0;display:grid;gap:12px;padding:17px 14px;border:1px solid var(--recov-border);background:var(--surface);border-radius:18px}
+.recovery-signal.hr {--recov-series:var(--recov-blue)}
+.recovery-signal-heading {display:grid;gap:4px}
+.recovery-signal-tag {font-size:12px;font-weight:750;color:var(--recov-series)}
+.recovery-signal-heading h2 {font-size:17px;line-height:1.3;letter-spacing:-.25px;color:var(--recov-fg);font-weight:730;margin:0}
+.recovery-signal-value {display:grid;gap:2px}
+.recovery-signal-value strong {color:var(--recov-fg);font-size:clamp(26px,3vw,31px);font-weight:770;line-height:1.12;font-variant-numeric:tabular-nums}
+.recovery-signal-value span {color:var(--recov-secondary);font-size:12px;line-height:1.5}
+.recovery-signal-comparison {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;border-top:1px solid var(--recov-border);padding-top:12px}
+.recovery-signal-comparison>div {min-width:0;display:grid;gap:4px}
+.recovery-signal-comparison span {font-size:12px;line-height:1.45;color:var(--recov-secondary)}
+.recovery-signal-comparison strong {font-size:15px;line-height:1.3;color:var(--recov-fg);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.recovery-signal-coverage,.recovery-note {font-size:12px;line-height:1.6;color:var(--recov-secondary);margin:0}
+.recovery-timeline {min-width:0;display:grid;gap:7px}
+.recovery-timeline-svg {display:block;width:100%;height:auto;max-width:100%;overflow:visible}
+.recovery-chart-grid {stroke:rgba(184,208,215,.16);stroke-width:1;stroke-dasharray:4 5}
+.recovery-chart-label {fill:var(--recov-secondary);stroke:none;font:12px -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif}
+.recovery-chart-line {fill:none;stroke:var(--recov-series);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.recovery-chart-point {fill:var(--surface);stroke:var(--recov-series);stroke-width:1.7}
+.recovery-chart-baseline {stroke:#f0c68e;stroke-width:1.8;stroke-dasharray:6 5;opacity:.9}
+.recovery-chart-legend {display:flex;flex-wrap:wrap;gap:10px 17px;font-size:12px;color:var(--recov-secondary)}
+.recovery-chart-legend span {display:inline-flex;align-items:center;gap:7px}
+.recovery-chart-legend span:before {content:"";width:20px;border-top:3px solid var(--recov-series)}
+.recovery-chart-legend .recovery-legend-baseline:before {border-top-color:#f0c68e;border-top-style:dashed}
+.recovery-data-table {min-width:0;max-width:100%;font-size:12px}
+.recovery-data-table summary {cursor:pointer;color:var(--recov-secondary);padding:7px 0;min-height:35px;line-height:1.5}
+.recovery-data-table .feature-table {width:100%;margin-top:8px}
+.recovery-data-table .feature-table caption {text-align:left;font-size:12px;padding:6px 0;color:var(--recov-secondary)}
+.recovery-missing {font-size:12px;color:var(--recov-secondary);padding:22px 0;line-height:1.6}
+.recovery-dashboard .section-block {margin-top:0;min-width:0}
+.recovery-night-panel {padding:19px 14px}
+.recovery-dashboard #cardio-night-select {max-width:100%;min-height:48px;font-size:16px}
+.recovery-dashboard .sleep-night-measures {min-width:0}
+.recovery-dashboard .cardio-profile-mount {min-width:0}
+.recovery-dashboard .cardio-chart-widget {min-width:0}
+.recovery-dashboard .cardio-profile-svg {min-height:160px}
+.recovery-dashboard .cardio-tabular {max-width:100%;overflow-x:auto}
+.recovery-deeper {border:1px solid var(--recov-border);border-radius:15px;padding:0 14px 14px;min-width:0}
+.recovery-deeper-toggle {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;align-items:center;cursor:pointer;list-style:none;min-height:58px;padding:14px 0}
+.recovery-deeper-toggle::-webkit-details-marker {display:none}
+.recovery-deeper-toggle span {font-size:15px;color:var(--recov-fg);font-weight:700}
+.recovery-deeper-toggle small {grid-column:1;grid-row:2;font-size:12px;line-height:1.45;color:var(--recov-secondary)}
+.recovery-deeper-toggle svg {grid-column:2;grid-row:1/span 2;width:19px;height:19px}
+.recovery-deeper[open] .recovery-deeper-toggle svg {transform:rotate(180deg)}
+.recovery-dashboard button:focus-visible,.recovery-dashboard select:focus-visible,.recovery-dashboard input:focus-visible,
+.recovery-dashboard summary:focus-visible {outline:2px solid var(--recov-accent);outline-offset:3px}
+@media(max-width:599px){
+ .view-recovery .main-content {padding:14px 14px calc(104px + env(safe-area-inset-bottom))}
+ .view-recovery .topbar {height:61px}
+ .recovery-dashboard {gap:17px}
+ .recovery-signal {padding:15px 12px}
+ .recovery-dashboard .cardio-profile-svg {min-height:150px}
+ .recovery-dashboard .cardio-quality-grid {grid-template-columns:1fr}
+ .recovery-dashboard .period-summary {gap:5px}
+ .recovery-dashboard .period-stat {padding:10px 6px}
+ .recovery-dashboard .period-stat strong {font-size:16px}
+ .recovery-dashboard .period-stat small {font-size:11px}
+}
+@media(min-width:600px) {
+ .recovery-dashboard {gap:25px}
+ .recovery-range-bar {display:flex;align-items:center;justify-content:space-between}
+ .recovery-range-bar .tab-segment {width:auto;min-width:270px}
+ .recovery-signal {padding:21px 19px}
+ .recovery-night-panel {padding:24px}
+}
+@media(min-width:960px){
+ .recovery-signals {grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+ .recovery-overview {max-width:710px}
+}
+@media(max-width:800px){
+ .view-recovery .mobile-nav-btn {min-height:52px;color:var(--recov-secondary);font-size:11px}
+ .view-recovery .mobile-nav-btn.is-active {color:var(--recov-accent)}
+}
+@media(prefers-reduced-motion:reduce){.recovery-dashboard * {transition:none!important;animation:none!important}}

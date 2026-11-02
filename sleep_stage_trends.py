@@ -63,7 +63,8 @@ def build(rows: dict[str,dict], *, days: int, today: date) -> dict:
         d = start+timedelta(days=idx)
         key = d.isoformat()
         vals = indexed.get(key)
-        day = {"day":key,"valid":vals is not None}
+        day = {"day":key,"valid":vals is not None,
+               "total_minutes":round(vals["total"],2) if vals else None}
         for stage in STAGES:
             day[stage+"_minutes"] = round(vals[stage],2) if vals else None
             day[stage+"_percent"] = round(vals[stage]/vals["total"]*100,2) if vals else None

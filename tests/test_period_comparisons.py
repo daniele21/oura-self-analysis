@@ -10,6 +10,9 @@ import unittest
 import period_comparisons as pc
 import dashboard_server
 from scripts.validate_oura_insights import audit, private_write
+from dashboard_parity import inspect_payload, inspect_ranges
+from dashboard_insight_review import build as build_review
+from copy import deepcopy
 
 
 END = date(2026, 10, 31)
@@ -128,6 +131,16 @@ class TestPeriodComparisons(unittest.TestCase):
         self.assertEqual(tail["delta"], -140)
         self.assertTrue(tail["opposes_weekly_comparison"])
         self.assertEqual(tail["latest_three"]["valid_nights"], 3)
+        pattern_payload = {
+            "sleep_intelligence": {"comparisons": sleep},
+            "period_comparisons": pc.build(rows, today=END, group="recovery"),
+            "meta": {"last_observed_day": END.isoformat(), "age_days": 0},
+        }
+        review = build_review(pattern_payload)
+        self.assertEqual(review["patterns"][0]["id"],
+                         "weekly-masks-recent-sleep-shift")
+        self.assertEqual(len(review["patterns"]), 2)
+        self.assertTrue(all(not item["medical_alert"] for item in review["patterns"]))
         recovery = pc.build(rows, today=END, group="recovery")
         hr_tail = next(m for m in recovery["recent_week_trajectory"]["metrics"]
                        if m["key"] == "hrv_ms")
@@ -190,6 +203,24 @@ class TestIntegratedDashboard(unittest.TestCase):
             self.assertEqual(metric(recovery,"7v28","hrv_ms")["delta"],-15)
             raw=json.dumps(payload)
             self.assertNotIn("do-not-leak",raw)
+            inspected, api_problems = inspect_payload(payload)
+            self.assertGreater(inspected, 15)
+            self.assertEqual(api_problems, [])
+            corrupted = deepcopy(payload)
+            corrupted["records"][-1]["sleep_minutes"] += 47
+            _, issues = inspect_payload(corrupted)
+            self.assertIn("NIGHT_RECORD_DIFFERENCE", [x["code"] for x in issues])
+            corrupted = deepcopy(payload)
+            weekly_card = next(i for i in corrupted["insights"]
+                               if i["id"] == "sleep-weekly-comparison")
+            weekly_card["measurements"]["sleep_minutes_avg_delta"] += 42
+            _, issues = inspect_payload(corrupted)
+            self.assertIn("WEEKLY_INSIGHT_DIFFERENCE", [x["code"] for x in issues])
+            views = {span: dashboard_server.make_payload(db, days=span, today=END)
+                     for span in (7, 30, 90)}
+            checked, drift = inspect_ranges(views)
+            self.assertGreater(checked, 25)
+            self.assertEqual(drift, [])
             # Older individual days (8..56) are not listed in day-level sections.
             self.assertNotIn(dated(40),json.dumps(payload["records"]))
             self.assertNotIn(dated(40),json.dumps(payload["sleep_intelligence"]["nights"]))
@@ -211,6 +242,11 @@ class TestIntegratedDashboard(unittest.TestCase):
             self.assertNotIn(dated(10), json.dumps(stale["records"]))
             private_review = audit(db, today=END + timedelta(days=3))
             self.assertEqual(private_review["checks_executed"], 42)
+            self.assertGreater(private_review["api_checks_executed"], 100)
+            self.assertEqual(private_review["api_ranges_checked"], [7, 30, 90])
+            self.assertFalse(any(x["code"].endswith("DIFFERENCE") or
+                                 x["code"] == "COMPARISON_RANGE_DRIFT"
+                                 for x in private_review["issues"]))
             self.assertFalse(any(issue["code"] == "COMPARISON_INCONSISTENCY"
                                  for issue in private_review["issues"]))
             self.assertIn("DATA_NOT_CURRENT",

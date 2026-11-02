@@ -295,6 +295,8 @@ def build(db:Path,*,days:int=30,today:date|None=None)->dict:
     latest=next((r["day"] for r in reversed(nights) if r["main_sleep_available"]),None)
     from sleep_stage_trends import build as build_stages
     stage_trends = build_stages(rows, days=days, today=today)
+    from sleep_stage_overlays import build as build_stage_overlays
+    stage_trends["overlays"] = build_stage_overlays(stage_trends)
     from period_comparisons import build as build_comparisons
     # Use the most recent qualified overnight session, even if a lagging sync
     # has left today's calendar window partially empty. Preserve report dates

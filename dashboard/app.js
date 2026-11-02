@@ -1106,7 +1106,11 @@ function sleepPhaseOverlayPanel(phase,comparison,unit,markers){
     compact("B · precedente",shown(bv),"reference"),
     compact("A − B",shownDelta,"delta"));
   a(metric,title,row);a(wrap,metric);
-  const W=720,H=170,L=49,R=14,T=15,B=34,plotWidth=W-L-R,plotHeight=H-T-B;
+  // Render using a compact *physical* viewBox on narrow panels; a 720px
+  // SVG shrunk to 270px makes axis labels illegible even when layout fits.
+  const midWidth=window.matchMedia("(min-width:600px) and (max-width:999px)").matches;
+  const W=midWidth?640:360,H=midWidth?216:190,L=midWidth?52:45,R=13,T=15,B=34;
+  const plotWidth=W-L-R,plotHeight=H-T-B;
   const get=(x)=>num(x?.[phase.key+"_"+unit]);
   const values=[...aRows.map(get),...bRows.map(get)].filter(v=>v!==null);
   const peak=values.length?Math.max(...values):0;
@@ -1114,7 +1118,7 @@ function sleepPhaseOverlayPanel(phase,comparison,unit,markers){
     Math.max(30,Math.ceil(peak*1.12/30)*30);
   const yOf=v=>T+(1-v/maxY)*plotHeight;
   const xOf=i=>L+plotWidth*(aRows.length===1?.5:i/(aRows.length-1));
-  const svg=s("svg",{viewBox:"0 0 720 170",class:"sleep-overlay-svg",
+  const svg=s("svg",{viewBox:"0 0 "+W+" "+H,class:"sleep-overlay-svg",
     role:"img","aria-label":phase.label+" confronto sovrapposto: A recente linea continua, B precedente tratteggiata"});
   a(svg,s("title",{},"Confronto "+phase.label+" nei "+comparison.days_per_period+" giorni dei due periodi"));
   for(let i=0;i<=3;i++){

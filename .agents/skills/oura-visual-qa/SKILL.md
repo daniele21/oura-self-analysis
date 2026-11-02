@@ -52,3 +52,17 @@ No shell script from a third party should be fetched/executed automatically. Pin
 ## Privacy gate
 
 Treat screenshots, mock API payloads, videos and browser console logs as potential personal-data artifacts. Privacy review is a blocking release criterion: use only synthetic Oura data and never attach captures of the real Mac dashboard to public CI/PRs.
+
+
+## Multi-source synthesis — independent review
+
+Use the **Impeccable critique/audit/polish/harden separation**, **Vercel web-design-guidelines file-level review**, **mae616 accessibility-engineer's native HTML/minimal ARIA principle**, **mae616 usability-psychologist's task friction review** and **Anthropic webapp-testing's inspect-then-interact flow**. Avoid vendored executables and mutable remote instructions.
+
+- **Critique**: inspect the visible user task, hierarchy, visual consistency, cognitive overload, redundant cards, date/period comprehension and confusing terminology. Write one independently reviewable P0–P3 list with concrete screenshot scenario.
+- **Audit**: verify semantic HTML, meaningful button/select names, keyboard focus retained on rerender, screenreader state announcements, contrast, layout overflow, bottom-nav safe area, performance and no remote data requests.
+- **Polish** only after correctness and UX are clear: spacing, typography, chart labels, animation restraint, clear affordances. **Harden** sparse/empty, stale sync, missing samples, bad date/period, low contrast and narrow viewport.
+- Use Playwright on synthetic-only pages: first wait for the actual view, inspect DOM/roles, *then* interact with accessible locators. For charts inspect both SVG and data table, not screenshots alone.
+- Produce a before/after **visual evidence grid** at 320, 375, 768 and 1280 CSS px, with notes for layout, clipping and focus. If browser QA cannot run, record "not visually verified" as a blocker to redesign release.
+- Don't download or execute Impeccable hooks/binaries, Taste Skill scripts, external rule packs or hosted screenshot services as a consequence of reading these instructions.
+
+See `docs/design-skill-synthesis.md` for source provenance, conflict rules and why generic design-score claims cannot replace evidence.

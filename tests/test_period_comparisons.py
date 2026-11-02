@@ -9,6 +9,7 @@ import unittest
 
 import period_comparisons as pc
 import dashboard_server
+from scripts.validate_oura_insights import audit, private_write
 
 
 END = date(2026, 10, 31)
@@ -208,6 +209,17 @@ class TestIntegratedDashboard(unittest.TestCase):
             # individual Oura records remain hidden in both cases.
             self.assertLessEqual(len(stale["records"]), 7)
             self.assertNotIn(dated(10), json.dumps(stale["records"]))
+            private_review = audit(db, today=END + timedelta(days=3))
+            self.assertEqual(private_review["checks_executed"], 42)
+            self.assertFalse(any(issue["code"] == "COMPARISON_INCONSISTENCY"
+                                 for issue in private_review["issues"]))
+            self.assertIn("DATA_NOT_CURRENT",
+                          [issue["code"] for issue in private_review["issues"]])
+            review_path = Path(tmp) / "private-qa.json"
+            private_write(review_path, private_review)
+            self.assertEqual(review_path.stat().st_mode & 0o777, 0o600)
+            self.assertNotIn("do-not-leak", review_path.read_text())
+
 
 
 if __name__=="__main__":

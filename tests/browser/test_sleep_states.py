@@ -17,14 +17,17 @@ def run(base, scenario, out):
                 try:
                     page.goto(base+"/#/sleep",wait_until="networkidle",timeout=30000)
                     page.get_by_role("heading",name="Come cambia il tuo sonno").wait_for()
-                    assert page.locator(".sleep-stage-hero").is_visible()
                     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"),\
                         f"Overflow in {scenario} {width}"
                     if scenario=="empty":
-                        assert "0/30 notti valide" in page.locator(".sleep-context").inner_text()
-                        assert page.get_by_text("Nessuna fase di sonno completa nel periodo").is_visible() or \
-                               page.get_by_text("Nessuna notte con tutte e tre le fasi valide").is_visible()
+                        # No data at all may make the analytics endpoint unavailable.
+                        # This is an error/sync state, NEVER evidence of 0 minutes asleep.
+                        assert page.locator(".sleep-dashboard .empty-state").is_visible()
+                        assert page.get_by_text("Dati non disponibili",exact=True).is_visible()
+                        assert page.locator(".sleep-context").count()==0
+                        assert page.get_by_text("0 min",exact=True).count()==0
                     else:
+                        assert page.locator(".sleep-stage-hero").is_visible()
                         assert page.locator(".sleep-overlay-panel").count()==3
                         assert "Confronto parziale" in page.locator(".sleep-phase-compare").inner_text()
                         assert "notti valide" in page.locator(".sleep-context").inner_text()

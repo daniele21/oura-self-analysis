@@ -13,7 +13,7 @@ Project coding agents start with [AGENTS.md](AGENTS.md) and four repo-local, ven
 - [oura-health-charts](.agents/skills/oura-health-charts/SKILL.md): faithful plots, comparative windows, missingness and valid sample coverage
 - [oura-visual-qa](.agents/skills/oura-visual-qa/SKILL.md): synthetic-only responsive, keyboard and accessibility verification before frontend releases
 
-Eight original public sources (Anthropic, Impeccable, Taste Skill, UI UX Pro Max, Vercel, mae616 and webapp-testing) have been reviewed and attributed in the synthesis, with their transferable methods merged into our four project skills. **The upstream scripts, binaries, hooks, assets and skill bodies have not been installed or vendored.** Real Oura readings must not be used in CI screenshots, hosted design tools, public PRs or LLM prompts.
+Eight original public sources (Anthropic, Impeccable, Taste Skill, UI UX Pro Max, Vercel, mae616 and webapp-testing) have been reviewed and attributed in the synthesis, with their transferable methods merged into our four project skills. The first [Sonno comparison design brief](docs/design-decisions/sonno-comparison-concept.md) tests the method conceptually against three candidate designs; rendered browser validation is still pending. **The upstream scripts, binaries, hooks, assets and skill bodies have not been installed or vendored.** Real Oura readings must not be used in CI screenshots, hosted design tools, public PRs or LLM prompts.
 
 ## Mobile dashboard — Oura Insights
 

@@ -48,3 +48,7 @@ For EACH changed top-level view (Oggi, Sonno, Recupero, Attivita, Insight), chec
 - Vercel before-and-after: https://github.com/vercel-labs/before-and-after
 
 No shell script from a third party should be fetched/executed automatically. Pin reviewed versions, use lockfiles and isolated synthetic fixture tests if these dependencies are later approved.
+
+## Privacy gate
+
+Treat screenshots, mock API payloads, videos and browser console logs as potential personal-data artifacts. Privacy review is a blocking release criterion: use only synthetic Oura data and never attach captures of the real Mac dashboard to public CI/PRs.

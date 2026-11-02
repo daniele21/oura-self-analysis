@@ -74,7 +74,10 @@ class TestMobileInformationArchitecture(unittest.TestCase):
         self.assertIn("function applyRoute()",code)
         self.assertIn("function cardioNightChart(profile,selectedComparison=null)",code)
         self.assertIn("async function loadCardioNightProfile(day,host)",code)
-        self.assertIn("profilo HR/HRV della notte selezionata",code)
+        self.assertIn("Esplora una notte",code)
+        self.assertIn("loadCardioNightProfile(state.sleepDay,profileMount)",code)
+        self.assertIn("function recoverySignalCard(data,key,report)",code)
+        self.assertIn("function recoveryTimeline(data,metric,baseline)",code)
         self.assertIn("Non ci sono",code)
         self.assertNotIn("const SAMPLE_HRV=",code)
 

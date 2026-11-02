@@ -259,8 +259,20 @@ def build(db:Path,*,days:int=30,today:date|None=None)->dict:
     first=today-timedelta(days=days-1)
     # Read enough private history for 28v28 even when only seven nights are visible.
     # Older per-night records never leave this module via the comparison report.
-    grouped=daily_records(db,first-timedelta(days=max(14,56-days)),today)
+    initial_start=first-timedelta(days=max(14,56-days))
+    grouped=daily_records(db,initial_start,today)
     rows={key:extract(key,groups) for key,groups in grouped.items()}
+    # The comparison is anchored to the last measured main night, not to
+    # today's calendar date. When syncing lags, the oldest 28v28 baseline
+    # must be extended by the same lag; otherwise the 7/30/90 API ranges
+    # would report contradictory sample counts for the same comparison.
+    comparison_day=max((key for key,row in rows.items()
+                        if key<=today.isoformat() and row.get("main_sleep_available")),
+                       default=today.isoformat())
+    comparison_start=date.fromisoformat(comparison_day)-timedelta(days=55)
+    if comparison_start<initial_start:
+        backfill=daily_records(db,comparison_start,initial_start-timedelta(days=1))
+        rows.update({key:extract(key,groups) for key,groups in backfill.items()})
     recent=week(rows,today)
     previous=week(rows,today-timedelta(days=7))
     deltas={}
@@ -287,9 +299,6 @@ def build(db:Path,*,days:int=30,today:date|None=None)->dict:
     # Use the most recent qualified overnight session, even if a lagging sync
     # has left today's calendar window partially empty. Preserve report dates
     # separately so a stale data feed is never presented as today's sleep.
-    comparison_day = max((day for day, row in rows.items()
-                          if day <= today.isoformat() and row.get("main_sleep_available")),
-                         default=today.isoformat())
     period_comparisons = build_comparisons(
         rows, today=date.fromisoformat(comparison_day), group="sleep")
     return {"schema_version":"2.0","method":"Deterministic local descriptive sleep analysis",

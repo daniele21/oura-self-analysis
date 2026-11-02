@@ -21,6 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import health_analytics
 import oura_self_analysis as oura
+import dashboard_server
+from dashboard_parity import inspect_payload, inspect_ranges, is_structural_problem
 
 DEFAULT_OUTPUT = (Path.home() / "Library" / "Application Support"
                   / "OuraSelfAnalysis" / "enriched" / "quality_review.json")
@@ -109,6 +111,18 @@ def audit(db: Path, *, today: date) -> dict:
                 )
             },
         })
+    # Verify the same local SQLite through all three dashboard view ranges.
+    # API payloads stay in RAM and never appear in CI logs or shared files.
+    payloads = {days: dashboard_server.make_payload(db, days=days, today=today)
+                for days in dashboard_server.SUPPORTED_DAYS}
+    api_checks = 0
+    for days, payload in payloads.items():
+        checked, discrepancies = inspect_payload(payload)
+        api_checks += checked
+        issues.extend({**item, "visible_range_days": days} for item in discrepancies)
+    checked, discrepancies = inspect_ranges(payloads)
+    api_checks += checked
+    issues.extend(discrepancies)
     if any(o["lag_calendar_days"] > 2 for o in observations):
         issues.append({"code": "DATA_NOT_CURRENT",
                        "scope": "data_freshness",
@@ -117,7 +131,8 @@ def audit(db: Path, *, today: date) -> dict:
         "schema_version": "1", "report_date": today.isoformat(),
         "clinical_guidance": False, "causal_inference": False,
         "scope": "local read-only self-audit; aggregates only",
-        "checks_executed": passed, "issues": issues,
+        "checks_executed": passed, "api_checks_executed": api_checks,
+        "api_ranges_checked": list(payloads), "issues": issues,
         "observations": observations,
         "limitations": [
             "Review comparisons are observational; missingness and wearables introduce uncertainty.",
@@ -157,8 +172,11 @@ def main() -> int:
         # in a runner log. Run this locally, inspecting the private DB if needed.
         print("AUDIT_FAILED; private details were not printed")
         return 1
-    failures = sum(x["code"] == "COMPARISON_INCONSISTENCY" for x in result["issues"])
-    print(f"AUDIT_{'FAILED' if failures else 'COMPLETED'} checks={result['checks_executed']} inconsistencies={failures}")
+    failures = sum(item["code"] in ("COMPARISON_INCONSISTENCY", "GROUP_MISMATCH") or
+                   is_structural_problem(item) for item in result["issues"])
+    print(f"AUDIT_{'FAILED' if failures else 'COMPLETED'} "
+          f"comparison_checks={result['checks_executed']} "
+          f"api_checks={result['api_checks_executed']} inconsistencies={failures}")
     print("Aggregate report saved under the private local Application Support directory.")
     return 1 if failures else 0
 

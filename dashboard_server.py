@@ -25,6 +25,7 @@ import cardio_night_profiles
 import cardio_night_comparisons
 import local_enrichment
 import oura_self_analysis as oura
+import dashboard_insight_review
 
 ASSET_DIR = Path(__file__).resolve().parent / "dashboard"
 ALLOWED_ASSETS = {
@@ -87,7 +88,7 @@ def make_payload(db: Path, *, days: int = 30, today: date | None = None) -> dict
         {key: item.get(key) for key in allowed_insight_keys}
         for item in document.get("insights", [])
     ]
-    return {
+    payload = {
         "version": "1.0",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "range": {"days": days, "start": (now - timedelta(days=days - 1)).isoformat(), "end": end},
@@ -107,6 +108,8 @@ def make_payload(db: Path, *, days: int = 30, today: date | None = None) -> dict
         "metric_definitions": cardio_metric_registry.public_definitions(),
         "privacy": "Dati locali. Statistiche descrittive, non valutazioni cliniche.",
     }
+    payload["review"] = dashboard_insight_review.build(payload)
+    return payload
 
 
 class DashboardHandler(BaseHTTPRequestHandler):

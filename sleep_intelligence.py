@@ -284,7 +284,14 @@ def build(db:Path,*,days:int=30,today:date|None=None)->dict:
     from sleep_stage_trends import build as build_stages
     stage_trends = build_stages(rows, days=days, today=today)
     from period_comparisons import build as build_comparisons
-    period_comparisons = build_comparisons(rows, today=today, group="sleep")
+    # Use the most recent qualified overnight session, even if a lagging sync
+    # has left today's calendar window partially empty. Preserve report dates
+    # separately so a stale data feed is never presented as today's sleep.
+    comparison_day = max((day for day, row in rows.items()
+                          if day <= today.isoformat() and row.get("main_sleep_available")),
+                         default=today.isoformat())
+    period_comparisons = build_comparisons(
+        rows, today=date.fromisoformat(comparison_day), group="sleep")
     return {"schema_version":"2.0","method":"Deterministic local descriptive sleep analysis",
             "window":{"start":first.isoformat(),"end":today.isoformat(),"days":days},
             "weekly":{"recent":recent,"previous":previous,

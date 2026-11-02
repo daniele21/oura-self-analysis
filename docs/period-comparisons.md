@@ -96,3 +96,47 @@ python3 -m unittest discover -s tests -v
 - Futuro: ranking esplicabile delle differenze solo dopo valutazione
   dei falsi positivi su dati sintetici e una revisione utente di
   esempi di insight reali (eseguita privatamente sul Mac).
+
+## Audit qualitativo locale (v1.1)
+La media settimanale può aumentare mentre il segmento più recente peggiora:
+per ogni metrica **non-oraria** viene quindi aggiunta una lettura prefissata
+"ultime 3 notti vs prime 4 notti" **della stessa settimana**. La finestra
+recente deve avere tutte le tre notti valide e la prima parte almeno 3/4:
+il dato incompleto non viene presentato come zero. L'aggregazione resta
+coerente con la metrica (media sonno, mediana FC/HRV).
+`opposes_weekly_comparison` confronta esclusivamente i SEGNI della
+differenza interna alla settimana e del 7v7, non misura causalità,
+effetto clinico o probabilità del cambiamento.
+
+Le nuove comparazioni sono ancorate **all'ultimo giorno con misura
+utilizzabile** per ciascuna area, e mostrano `as_of_day`. Se il sync è
+datato, la UI lo dice esplicitamente; non suggerisce che le misure
+rappresentino la notte odierna. Le altre analisi storiche che usano
+la data del report mantengono i loro periodi dichiarati: non devono
+essere confuse con questo comparatore.
+
+### Procedura ripetibile
+L'audit dettagliato è progettato per essere eseguito **solo sul Mac
+dell'utente**, non su un runner pubblico o un repository GitHub.
+Legge SQLite senza scrittura, usa l'analytics engine locale e salva
+solo aggregati con permessi file `0600`:
+
+```bash
+cd ~/Projects/oura-self-analysis
+git pull --ff-only
+python3 scripts/validate_oura_insights.py
+```
+
+Il file privato è
+`~/Library/Application Support/OuraSelfAnalysis/enriched/quality_review.json`.
+Lo stdout restituisce esclusivamente contatori dei controlli e non
+stampa date, HRV, FC o identificativi personali. Un'esecuzione con
+`AUDIT_COMPLETED` significa **consistenza strutturale** delle differenze,
+non che gli insight siano clinicamente validati.
+Non caricare il report su Actions, GCS pubblico o nel repository.
+Usare uno snapshot del ring aggiornato e almeno 56 notti qualificate
+per valutare integralmente 28v28 (copertura minima 21/28 per periodo).
+
+Il repository pubblico Oura non è incluso automaticamente nella
+allowlist di `daniele21/local-runner-infra`; l'audit privato non
+modifica i permessi di esecuzione del Mac.

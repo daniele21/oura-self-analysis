@@ -381,7 +381,16 @@ def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[l
     cardio_context = evaluate_cardio_context(context_history, meta["window_end"])
     insights.extend(explain_cardio_context(cardio_context))
     from period_comparisons import build as build_period_comparisons
-    period_comparisons = build_period_comparisons(context_history, today=today, group="recovery")
+    # For stale datasets, do not put unobserved days into the recent
+    # 7-calendar-night sample. The date is exported explicitly to the UI.
+    latest_recovery_day = max(
+        (row["day"] for row in context_history
+         if row.get("day", "") <= today.isoformat()
+         and (plausible(row.get("hrv_ms"), 1, 250) is not None
+              or plausible(row.get("rhr_bpm"), 25, 150) is not None)),
+        default=today.isoformat())
+    period_comparisons = build_period_comparisons(
+        context_history, today=date.fromisoformat(latest_recovery_day), group="recovery")
     return rows, {
         "schema_version": ANALYTICS_VERSION,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),

@@ -159,6 +159,42 @@ def _metric(by_day: Mapping[str, dict], today: date, spec: tuple,
     }
 
 
+def recent_week_trajectory(by_day: Mapping[str, dict], today: date,
+                           specs: tuple, week_metrics: list[dict]) -> dict:
+    """Predeclared, within-week comparison: 3 latest nights vs 4 earlier nights.
+
+    The last three calendar nights must all have data, and three of the
+    previous four must be present. No clinical interpretation or extrapolation.
+    """
+    weekly = {m["key"]: m for m in week_metrics}
+    metrics = []
+    for key, label, unit, method in specs:
+        if method == "circular_sd":
+            continue  # clock spread cannot be decomposed into single-night values
+        tail, _ = _window(by_day, today, 0, 3, key, method, 3)
+        first, _ = _window(by_day, today, 3, 4, key, method, 3)
+        delta = (round(tail["value"] - first["value"], 2)
+                 if tail["value"] is not None and first["value"] is not None else None)
+        weekly_delta = weekly[key]["delta"]
+        opposite = (delta * weekly_delta < 0 if delta is not None
+                    and weekly_delta is not None else None)
+        metrics.append({
+            "key": key, "label": label, "unit": unit, "aggregate": method,
+            "latest_three": tail, "earlier_four": first,
+            "delta": delta, "opposes_weekly_comparison": opposite,
+        })
+    return {
+        "recent_span": [(today - timedelta(days=2)).isoformat(), today.isoformat()],
+        "earlier_span": [(today - timedelta(days=6)).isoformat(),
+                         (today - timedelta(days=3)).isoformat()],
+        "metrics": metrics,
+        "limitations": (
+            "Confronto esplorativo di 3 notti con 4, non un trend clinico; "
+            "notti mancanti sopprimono la stima, non vengono interpolate."
+        ),
+    }
+
+
 def build(rows: list[dict] | Mapping[str, dict], *, today: date, group: str) -> dict:
     """Return a window-aware, aggregate-only report, without leaking old daily rows."""
     if group not in ("sleep", "recovery"):
@@ -179,8 +215,11 @@ def build(rows: list[dict] | Mapping[str, dict], *, today: date, group: str) -> 
             "code": code, "recent_days": params[1], "reference_days": params[2],
             "metrics": metrics, "available_metrics": sum(m["status"] == "available" for m in metrics),
         }
+    trajectory = recent_week_trajectory(by_day, today, specs, windows["7v7"]["metrics"])
     return {
-        "schema_version": "1.0", "group": group, "windows": windows,
+        "schema_version": "1.1", "group": group, "windows": windows,
+        "as_of_day": today.isoformat(),
+        "recent_week_trajectory": trajectory,
         "default_window": "7v7" if group == "sleep" else "7v28",
         "privacy": "Aggregates only; older daily records are not exposed",
         "limitations": [
@@ -190,5 +229,7 @@ def build(rows: list[dict] | Mapping[str, dict], *, today: date, group: str) -> 
             "La direzione delle differenze non equivale automaticamente a miglioramento.",
             "Il supporto di direzione conta le osservazioni individuali sopra o sotto il centro precedente.",
             "Le fasi del sonno sono stime del dispositivo, più incerte delle durate globali.",
+            "Gli ultimi tre giorni sono confrontati con i quattro precedenti solo come descrizione.",
+            "Il confronto è ancorato alla più recente osservazione utilizzabile, che può essere datata.",
         ],
     }

@@ -52,10 +52,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for scenario in complete sparse empty; do
+          for scenario in complete sparse empty stale; do
             if [[ "$scenario" == "complete" ]]; then port=8770
             elif [[ "$scenario" == "sparse" ]]; then port=8771
-            else port=8772; fi
+            elif [[ "$scenario" == "empty" ]]; then port=8772
+            else port=8773; fi
             python scripts/serve_synthetic_dashboard.py --port "$port" --scenario "$scenario" > "/tmp/oura-recovery-$scenario.log" 2>&1 &
             server=$!
             trap 'kill "$server" 2>/dev/null || true' EXIT

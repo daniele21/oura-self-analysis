@@ -2,7 +2,7 @@
 
 **Data:** 2026-11-02  
 **Ambito:** Sonno → Fasi del sonno nel tempo  
-**Stato:** piano tecnico/UX; la checklist di rilascio viene aggiornata separatamente dopo i test.
+**Stato:** V1 implementata e installata sul Mac mini il 2 novembre 2026. Proposte V2 ancora da sviluppare.
 
 ## Obiettivo
 
@@ -103,3 +103,14 @@ In frontend:
 - Conclusioni sulla qualità del sonno basate solo sul numero di minuti REM o Deep.
 
 **Metodo di riferimento:** \`docs/scientific-methods.md\`, \`sleep_stage_trends.py\`, \`period_comparisons.py\`.
+
+## Esito del rilascio V1 — 2 novembre 2026
+
+**Completati:** SLP-C01…SLP-C06. Codice in \`sleep_stage_overlays.py\`, integrazione in \`sleep_intelligence.py\` / \`sleep_stage_trends.py\`, grafici e controlli in \`dashboard/app.js\` e \`dashboard/styles.css\`, cache PWA aggiornata. Il browser richiede esplicitamente il caricamento di 30 o 90 giorni per mostrare due periodi completi.
+
+**Test offline:** \`tests/test_sleep_stage_overlays.py\` e verifica UI \`tests/test_ux_ia_m0.py\`. Suite GitHub Actions: https://github.com/daniele21/oura-self-analysis/actions/runs/41415250939 (success).
+
+**Deploy:** Mac mini con runner privato, https://github.com/daniele21/local-runner-infra/actions/runs/41415345822 (success). Controllati schema delle comparazioni 7v7/30v30, limiti di visibilità 7/30/90 giorni, dashboard/API locali e qualità della risposta senza inviare valori fisiologici nei log.
+
+**Attenzione:** verifica di contratto e deploy non equivale a revisione visiva su smartphone né a conferma che il campione personale soddisfi in questo momento il requisito 4/7 o 21/30. L'assenza di notti sufficienti nasconde medie e differenze, lasciando visibili gli eventuali punti validi.
+

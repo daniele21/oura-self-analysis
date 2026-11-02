@@ -143,6 +143,18 @@ Le durate e le fasi del sonno sono stime del wearable; HRV e frequenza
 cardiaca non identificano automaticamente recupero atletico o salute.
 Dettagli delle finestre, qualità e limiti: [metodologia comparativa](docs/period-comparisons.md).
 
+### Sleep stage period overlays — V1
+
+The **Sonno → Fasi del sonno nel tempo** section now includes **Confronta periodi** alongside Composition and 7-day Trend. It overlays **two equal, nonoverlapping periods** on three small charts, one each for Oura-estimated light, deep and REM sleep. The recent period A is a solid line; the preceding B is dashed. Compare **7 vs 7** or **30 vs 30** days in either **minutes per night** or **percentage of total sleep**. Each phase shows A/B means, A−B difference and complete-night coverage.
+
+The horizontal axis aligns *relative day number* (G1…G7 or G1…G30), not absolute dates. A shared keyboard-accessible day slider displays the actual dates and both sets of values, with an equivalent table.
+
+Missing or inconsistent nights remain gaps, never zeros or interpolated points. Summaries require **4/7 or 21/30 valid nights in each period**; phase percentages are weighted by recorded total-sleep time. The most recent *phase-qualified* main sleep anchors the comparison, even when Oura syncing is delayed.
+
+**Privacy:** daily values outside the explicitly selected API view are not returned. The UI requests an explicit switch to the 30-day view for 7v7 or the 90-day view for 30v30, rather than silently widening the exposed date range. No new Oura scope, health-data logging, or external service is introduced.
+
+Technical plan and acceptance criteria: [sleep-stage overlay comparison](docs/sleep-stage-overlay-comparison-plan.md).
+
 ### Sleep stage trends — light, deep and REM
 
 In **Sonno → Fasi del sonno nel tempo**, a new dedicated chart shows the three estimated sleep phases as color-coded **stacked nightly bars** for 7/30 days or **per-night weekly averages** for the 90-day view. Switch to **Trend 7 giorni** to see three independently drawn rolling 7-calendar-day averages, or between **minutes and percentage of total sleep**. The chart includes a keyboard-accessible date scrubber and a tabular equivalent.

@@ -1,6 +1,6 @@
 /* Private Oura dashboard: all health data stays in memory and is never cached. */
 "use strict";
-const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, stageMode:"composition", stageUnit:"minutes", comparison:{sleep:"7v7",recovery:"7v28"}, comparisonMetric:{sleep:"sleep_minutes",recovery:"hrv_ms"}, data:null, loading:false, nightAbort:null };
+const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, stageMode:"composition", stageUnit:"minutes", stageComparePreset:"7v7", comparison:{sleep:"7v7",recovery:"7v28"}, comparisonMetric:{sleep:"sleep_minutes",recovery:"hrv_ms"}, data:null, loading:false, nightAbort:null };
 const root = document.getElementById("view-root");
 const notice = document.getElementById("notice");
 const spinner = document.getElementById("load-state");
@@ -1080,6 +1080,189 @@ const PHASES=[
   {key:"deep",label:"Profondo",unit:"",css:"deep"},
   {key:"rem",label:"REM",unit:"",css:"rem"}
 ];
+
+function sleepPhaseOverlayPanel(phase,comparison,unit,markers){
+  const aRows=comparison.recent.daily,bRows=comparison.reference.daily;
+  const wrap=e("article","sleep-overlay-panel "+phase.css);
+  const recent=comparison.recent.averages[phase.key];
+  const reference=comparison.reference.averages[phase.key];
+  const av=num(recent[unit]),bv=num(reference[unit]);
+  const delta=comparison.delta[phase.key][unit==="minutes"?"minutes":"percentage_points"];
+  const suffix=unit==="minutes"?"min":"%";
+  const metric=e("div","sleep-overlay-summary");
+  const title=e("h4","",phase.label);
+  const row=e("div","sleep-overlay-stats");
+  const compact=(label,value,side)=>{
+    const x=e("div","sleep-overlay-stat "+side);
+    a(x,e("span","",label),e("strong","",value));
+    return x;
+  };
+  const shown=v=>num(v)===null?"—":format(v,unit==="percent"?1:0)+" "+suffix;
+  const shownDelta=num(delta)===null?"—":(delta>0?"+":"")+format(delta,unit==="percent"?1:0)+
+    (unit==="percent"?" pp":" min");
+  a(row,compact("A · recente",shown(av),"recent"),
+    compact("B · precedente",shown(bv),"reference"),
+    compact("A − B",shownDelta,"delta"));
+  a(metric,title,row);a(wrap,metric);
+  const W=720,H=170,L=49,R=14,T=15,B=34,plotWidth=W-L-R,plotHeight=H-T-B;
+  const get=(x)=>num(x?.[phase.key+"_"+unit]);
+  const values=[...aRows.map(get),...bRows.map(get)].filter(v=>v!==null);
+  const peak=values.length?Math.max(...values):0;
+  const maxY=unit==="percent"?Math.max(20,Math.min(100,Math.ceil(peak*1.12/10)*10)):
+    Math.max(30,Math.ceil(peak*1.12/30)*30);
+  const yOf=v=>T+(1-v/maxY)*plotHeight;
+  const xOf=i=>L+plotWidth*(aRows.length===1?.5:i/(aRows.length-1));
+  const svg=s("svg",{viewBox:"0 0 720 170",class:"sleep-overlay-svg",
+    role:"img","aria-label":phase.label+" confronto sovrapposto: A recente linea continua, B precedente tratteggiata"});
+  a(svg,s("title",{},"Confronto "+phase.label+" nei "+comparison.days_per_period+" giorni dei due periodi"));
+  for(let i=0;i<=3;i++){
+    const value=maxY*i/3,y=yOf(value);
+    a(svg,s("line",{x1:L,y1:y,x2:W-R,y2:y,class:"sleep-phase-grid"}),
+      s("text",{x:L-7,y:y+4,"text-anchor":"end",class:"sleep-phase-axis"},
+        format(value,0)+(i===3?" "+suffix:"")));
+  }
+  const labels=[0,Math.floor((aRows.length-1)/2),aRows.length-1];
+  [...new Set(labels)].forEach(i=>{
+    const align=i===0?"start":i===aRows.length-1?"end":"middle";
+    a(svg,s("text",{x:xOf(i),y:H-8,"text-anchor":align,class:"sleep-phase-axis"},
+      "G"+(i+1)));
+  });
+  function trace(rows,type){
+    let chunk=[];
+    function flush(){
+      if(chunk.length>1){
+        a(svg,s("path",{class:"sleep-overlay-line "+type,
+          d:chunk.map(([x,y],i)=>(i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1)).join(" ")}));
+      }
+      chunk=[];
+    }
+    rows.forEach((r,i)=>{
+      const value=r.valid?get(r):null;
+      if(value===null){flush();return;}
+      chunk.push([xOf(i),yOf(value)]);
+      if(aRows.length<=7 || i%3===0){
+        const point=s("circle",{cx:xOf(i),cy:yOf(value),r:2.6,
+          class:"sleep-overlay-point "+type});
+        a(point,s("title",{},type==="recent"?"A ":"B "+""+
+           "G"+(i+1)+" · "+shortDate(r.day)+" · "+phase.label+" "+shown(value)));
+        a(svg,point);
+      }
+    });
+    flush();
+  }
+  // Draw historical dashed reference first so the recent values remain prominent.
+  trace(bRows,"reference");trace(aRows,"recent");
+  const marker=s("line",{x1:xOf(aRows.length-1),x2:xOf(aRows.length-1),
+    y1:T,y2:T+plotHeight,class:"sleep-phase-cursor"});
+  a(svg,marker);markers.push((i)=>{
+    const x=xOf(i);marker.setAttribute("x1",String(x));marker.setAttribute("x2",String(x));
+  });
+  a(wrap,svg);
+  a(wrap,e("p","sleep-overlay-panel-foot",
+    "Copertura A "+comparison.recent.valid_nights+"/"+aRows.length+
+    " · B "+comparison.reference.valid_nights+"/"+bRows.length+" notti"));
+  return wrap;
+}
+
+function sleepPhaseCompare(report,data){
+  const compare=report.overlays,wrap=e("div","sleep-phase-compare");
+  if(!compare?.presets)return empty("Confronti da aggiornare",
+    "Il motore locale non ha ancora il nuovo formato per sovrapporre i periodi.","calendar");
+  const chooser=e("label","sleep-overlay-period");
+  a(chooser,e("span","","Periodi da sovrapporre"));
+  const select=e("select","sleep-select");
+  [["7v7","Ultimi 7 vs 7 precedenti"],["30v30","Ultimi 30 vs 30 precedenti"]].forEach(([key,label])=>{
+    const opt=e("option","",label);opt.value=key;opt.selected=state.stageComparePreset===key;a(select,opt);
+  });
+  select.addEventListener("change",()=>{state.stageComparePreset=select.value;render();});
+  a(chooser,select);a(wrap,chooser);
+  const selected=compare.presets[state.stageComparePreset];
+  if(!selected)return wrap;
+  const cap=e("p","coverage-description",
+    "Le due curve sono allineate per giorno relativo G1…G"+selected.days_per_period+
+    ", non per calendario assoluto; A è il periodo più recente.");
+  a(wrap,cap);
+  if(selected.status==="range_too_short"){
+    const necessary=selected.required_view_days;
+    a(wrap,hint("Per mostrare i valori giornalieri di entrambi i periodi senza estendere implicitamente la finestra dei dati, apri la vista "+necessary+" giorni.","info"));
+    if(necessary>data.range.days){
+      const b=e("button","period-expand","Apri "+necessary+" giorni per il confronto");
+      b.type="button";b.addEventListener("click",()=>load(necessary));a(wrap,b);
+    }else{
+      a(wrap,hint("Anche con l'intervallo selezionato, le notti disponibili sono troppo vecchie per questo confronto. Verifica la sincronizzazione.","info"));
+    }
+    return wrap;
+  }
+  if(selected.status==="no_data"){
+    a(wrap,empty("Nessuna notte con tutte e tre le fasi valide",
+      "Sincronizza il sonno Oura per poter confrontare i periodi.","moon"));
+    return wrap;
+  }
+  const A=selected.recent,B=selected.reference,markers=[];
+  const periods=e("div","sleep-overlay-periods");
+  a(periods,e("p","", "A · "+shortDate(A.start)+" – "+shortDate(A.end)+
+    " · "+A.valid_nights+"/"+A.calendar_days+" notti"),
+    e("p","", "B · "+shortDate(B.start)+" – "+shortDate(B.end)+
+    " · "+B.valid_nights+"/"+B.calendar_days+" notti"));
+  a(wrap,periods);
+  if(selected.status==="insufficient"){
+    a(wrap,hint("Confronto parziale: occorrono almeno "+selected.minimum_nights+
+      " notti valide per ciascun periodo. Le linee mostrano i dati osservati, ma le medie e le differenze restano nascoste.","info"));
+  }
+  const legend=e("div","sleep-overlay-legend");
+  a(legend,e("span","sleep-overlay-legend-a","A · periodo recente"),
+    e("span","sleep-overlay-legend-b","B · periodo precedente"));
+  a(wrap,legend);
+  const panels=e("div","sleep-overlay-panels");
+  PHASES.forEach(p=>a(panels,sleepPhaseOverlayPanel(p,selected,state.stageUnit,markers)));
+  a(wrap,panels);
+  const sliderBlock=e("div","sleep-phase-inspector");
+  const label=e("label","sleep-phase-inspector-label","Confronta il giorno relativo");
+  const slider=e("input","sleep-phase-range");
+  slider.type="range";slider.min="0";slider.max=String(A.daily.length-1);
+  slider.step="1";slider.value=String(A.daily.length-1);
+  slider.setAttribute("aria-label","Scegli il giorno corrispondente dei due periodi");
+  const output=e("output","sleep-phase-readout");
+  a(label,slider);
+  function inspect(){
+    const i=Number(slider.value),ra=A.daily[i],rb=B.daily[i];
+    markers.forEach(mark=>mark(i));
+    const textFor=(name,r)=>name+" "+shortDate(r.day)+": "+
+      PHASES.map(p=>{
+        const v=r.valid?num(r[p.key+"_"+state.stageUnit]):null;
+        return p.label+" "+(v===null?"—":format(v,state.stageUnit==="minutes"?0:1)+
+          (state.stageUnit==="minutes"?" min":"%"));
+      }).join(" · ");
+    output.textContent="G"+(i+1)+" · "+textFor("A",ra)+" | "+textFor("B",rb);
+  }
+  slider.addEventListener("input",inspect);
+  a(sliderBlock,label,output);a(wrap,sliderBlock);inspect();
+  const details=e("details","cardio-tabular sleep-overlay-table");
+  a(details,e("summary","","Tabella accessibile dei periodi"));
+  const table=e("table","feature-table"),thead=e("thead"),head=e("tr");
+  ["Giorno","Data A","Data B","A leggero","B leggero",
+   "A profondo","B profondo","A REM","B REM"].forEach(x=>a(head,e("th","",x)));
+  a(thead,head);a(table,thead);
+  const body=e("tbody"),suffix=state.stageUnit==="minutes"?" min":"%";
+  A.daily.forEach((recent,i)=>{
+    const previous=B.daily[i],row=e("tr");
+    a(row,e("td","","G"+(i+1)),e("td","",shortDate(recent.day)),
+      e("td","",shortDate(previous.day)));
+    PHASES.forEach(p=>{
+      [recent,previous].forEach(r=>{
+        const v=r.valid?num(r[p.key+"_"+state.stageUnit]):null;
+        a(row,e("td","",v===null?"—":format(v,state.stageUnit==="minutes"?0:1)+suffix));
+      });
+    });
+    a(body,row);
+  });
+  a(table,body);a(details,table);a(wrap,details);
+  a(wrap,hint("La linea continua indica il periodo recente e la tratteggiata quello precedente. "+
+    "Le fasi sono stime Oura, i giorni senza dati non diventano zero. "+
+    "Una quota maggiore di REM o profondo non indica automaticamente un sonno migliore.","shield"));
+  return wrap;
+}
+
 function sleepStageChart(data){
   const report=data.sleep_intelligence?.stage_trends;
   const wrap=section();
@@ -1100,11 +1283,14 @@ function sleepStageChart(data){
     return group;
   }
   a(controls,choices("Visualizzazione",[
-    ["composition","Composizione"],["trend","Trend 7 giorni"]],
+    ["composition","Composizione"],["trend","Trend 7 giorni"],["compare","Confronta periodi"]],
     state.stageMode,key=>{state.stageMode=key;}),
     choices("Unità",[["minutes","Minuti"],["percent","Percentuale"]],
     state.stageUnit,key=>{state.stageUnit=key;}));
   a(panelEl,controls);
+  if(state.stageMode==="compare"){
+    a(panelEl,sleepPhaseCompare(report,data));a(wrap,panelEl);return wrap;
+  }
   const unit=state.stageUnit, suffix=unit==="minutes"?"min":"%";
   const cards=e("div","sleep-phase-highlights");
   PHASES.forEach(({key,label,css})=>{

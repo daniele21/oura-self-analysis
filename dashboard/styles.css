@@ -659,3 +659,15 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
 @media(prefers-reduced-motion:reduce){
  .sleep-dashboard * {scroll-behavior:auto!important;transition:none!important;animation:none!important}
 }
+
+
+/* Browser QA: night selector rail must scroll *inside* its 320px grid cell.
+   Use minmax(0,1fr) to prevent its 90-day min-content width from expanding body. */
+.sleep-dashboard .sleep-night-detail {display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0;max-width:100%}
+.sleep-dashboard .sleep-night-detail > .section-block,
+.sleep-dashboard .sleep-night-detail .sleep-night-detail > *,
+.sleep-dashboard .sleep-night-main,
+.sleep-dashboard .sleep-stage-panel {min-width:0;max-width:100%}
+.sleep-dashboard .sleep-night-rail {display:flex;max-width:100%;width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+.sleep-dashboard .sleep-date-picker {min-width:0;max-width:100%}
+.sleep-dashboard .sleep-date-picker select {min-width:0;max-width:100%;width:100%}

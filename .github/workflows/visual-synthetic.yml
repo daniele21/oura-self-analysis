@@ -48,11 +48,32 @@ jobs:
             python tests/browser/test_sleep_states.py --base "http://127.0.0.1:$port" --scenario "$scenario" --output visual-evidence/sonno
             kill "$fixture_server" 2>/dev/null || true
           done
+      - name: Recupero browser layout and interaction (SYNTHETIC only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for scenario in complete sparse empty; do
+            if [[ "$scenario" == "complete" ]]; then port=8770
+            elif [[ "$scenario" == "sparse" ]]; then port=8771
+            else port=8772; fi
+            python scripts/serve_synthetic_dashboard.py --port "$port" --scenario "$scenario" > "/tmp/oura-recovery-$scenario.log" 2>&1 &
+            server=$!
+            trap 'kill "$server" 2>/dev/null || true' EXIT
+            for i in $(seq 1 30); do
+              if curl --silent --fail "http://127.0.0.1:$port/" -o /dev/null; then break; fi
+              sleep 1
+            done
+            python tests/browser/test_recovery_mobile.py --base "http://127.0.0.1:$port" --scenario "$scenario" --output visual-evidence/recupero
+            kill "$server" 2>/dev/null || true
+            trap - EXIT
+          done
       - name: Upload SYNTHETIC screenshots only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: synthetic-sonno-responsive
-          path: visual-evidence/sonno/*.png
+          name: synthetic-oura-responsive
+          path: |
+            visual-evidence/sonno/*.png
+            visual-evidence/recupero/*.png
           if-no-files-found: ignore
           retention-days: 7

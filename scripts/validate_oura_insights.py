@@ -21,6 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import health_analytics
 import oura_self_analysis as oura
+import dashboard_server
+from dashboard_parity import inspect_payload, inspect_ranges, is_structural_problem
 
 DEFAULT_OUTPUT = (Path.home() / "Library" / "Application Support"
                   / "OuraSelfAnalysis" / "enriched" / "quality_review.json")

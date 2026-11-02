@@ -44,3 +44,18 @@ These are review references, not permission to install unknown scripts or fetch 
 ## Privacy gate
 
 Only use synthetic fixtures and screenshots in UI reviews. Privacy is part of the design: never reveal live medical readings, private timestamps, Oura identifiers or credentials in external tools or CI artifacts. Always preserve the loopback-only service.
+
+
+## Multi-source synthesis — apply during redesign
+
+This skill is the *design execution* layer under `oura-design-director` (see `docs/design-skill-synthesis.md`). Combine **Anthropic subject-first art direction**, **Taste Skill's audit-before-redesign and visual alternatives**, **UI UX Pro Max's design-system-before-implementation**, **Impeccable's shape/distill/clarify/typographic polish** and **mae616 usability-psychologist's recognition-over-recall approach**.
+
+- Before changing CSS, generate three viable directions for the specific Oura view: Quiet Editorial, Data Observatory, Comparative Lab. Vary hierarchy, spatial rhythm, chart prominence and density; do *not* merely rotate palettes.
+- Apply the design-director weighted rubric and write a one-paragraph reason for the winner. Factual chart correctness and privacy are hard gates, not weighted preferences.
+- Run a cognitive-load test: what is the user's single next action; how many choices are simultaneously visible; are period A/B and n/N recognizable without memory or navigating away?
+- First **distill**: remove redundant full-height cards and duplicate comparisons. Then **typeset**: strengthen meaningful data labels, units, baselines and chart hierarchy. Only then consider visual accents.
+- Preserve task context on rerenders: a phase toggle must not reset the period, selected date, keyboard focus or accessible output unexpectedly.
+- Visually iterate on *synthetic screenshots*; record why a direction beats the previous state. Limit motion to communicating an actual change.
+- Reject full-bleed photography, dramatic marketing gradients, arbitrary randomness and conversion-focused patterns: this is a private data-analysis app, not a landing page.
+
+Consult `docs/design-skill-synthesis.md` for reviewed upstream links/blob SHAs; no remote skill code is automatically imported.

@@ -1,6 +1,6 @@
 /* Cache only the non-sensitive visual shell. Health API data is NEVER cached. */
 "use strict";
-const CACHE="oura-visual-shell-v3";
+const CACHE="oura-visual-shell-v4";
 const STATIC=["/","/app.js","/styles.css","/icon.svg","/manifest.webmanifest"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(STATIC)).then(()=>self.skipWaiting()));

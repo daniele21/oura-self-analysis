@@ -140,3 +140,11 @@ per valutare integralmente 28v28 (copertura minima 21/28 per periodo).
 Il repository pubblico Oura non è incluso automaticamente nella
 allowlist di `daniele21/local-runner-infra`; l'audit privato non
 modifica i permessi di esecuzione del Mac.
+
+## Parità tra dashboard e insight (v2)
+
+L'audit locale ora confronta le viste API 7/30/90, i dettagli delle notti, le metriche strutturate delle schede Insight e i periodi storici. Segnala valori contraddittori senza stampare dati sanitari nei log. In caso di sincronizzazione in ritardo, la lettura storica 28v28 parte dall'ultima notte disponibile e recupera l'intera baseline necessaria dal database locale.
+
+In Oggi e Insight compaiono al massimo due approfondimenti editoriali predefiniti: inversione della durata del sonno fra settimana e ultime tre notti, e variazioni HRV/FC minima di segno opposto. Copertura, persistenza e ampiezza minima evitano suggerimenti generati da differenze trascurabili; sono filtri di presentazione, **non soglie mediche**. L'assenza di una scheda non indica che sonno e recupero siano ottimali.
+
+Eseguire solo sul Mac: `python3 scripts/validate_oura_insights.py`. Il JSON privato contiene aggregati e codici di controllo, senza osservazioni individuali. Non va pubblicato nei log, artifact CI o repository.

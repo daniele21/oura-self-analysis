@@ -78,6 +78,7 @@ def run(base: str, out: Path):
                         needed.click()
                         page.locator(".sleep-overlay-panel").first.wait_for(timeout=25000)
                         assert page.locator(".sleep-overlay-panel").count()==3
+                        assert page.evaluate("document.activeElement?.getAttribute('data-focus-key')")=="sleep-period-select", "Focus lost after widening the calendar window"
                         assert page.get_by_text("30 giorni",exact=False).count()>0
                         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
                         page.screenshot(path=str(out/"sonno-30v30-375.png"),full_page=True)

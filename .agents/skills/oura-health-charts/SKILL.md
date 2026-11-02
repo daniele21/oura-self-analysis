@@ -51,3 +51,19 @@ Document baseline fixture, the exact semantic question, proposed chart, states, 
 ## Privacy gate
 
 Real health records never enter CI, remote screenshots, cloud code-review or AI models. Privacy-safe charts are tested only with deterministic synthetic measurements. Maintain loopback-only API access and do not widen date-level visibility silently.
+
+
+## Multi-source synthesis — chart-first review pass
+
+In addition to the current domain rules, borrow **UI UX Pro Max's chart-by-question selection**, **Vercel's readable UI and feedback heuristics**, **Impeccable's audit/harden stage** and **mae616's cognitive-load reduction**. These are constraints, not new scientific estimators.
+
+- For every new graph record: question → source metric/provenance → encoding → unit/denominator → display window → comparison window → sample n/N → missing-state → table alternative.
+- Before implementation, compare 2 plausible encodings (for example stacked bars vs three mini-trends for REM/light/deep). Reject representations that obscure change or suggest unsupported causal interpretation.
+- If overlaid A/B data use the same phase and unit, **force matching y limits** within that small multiple. Two different phases may have different y limits if visibly labeled.
+- For 7v7/30v30, distinguish relative day G1…GN from calendar date and explicitly show actual reference dates. Day gaps remain gaps, not zeros. Never show weighted percentage as an average of percentages.
+- Distill legends, selectors and nested boxes around charts until an unfamiliar reader can identify A vs B without memorizing a color. Use solid vs dashed, labels and nearest accessible inspector.
+- Audit dynamic focus and screenreader output after toggling the metric/unit/period and after asynchronous night-profile replacement.
+- Re-evaluate empty and sparse views as first-class layouts, not just an error message underneath a blank SVG.
+- For privacy, CI diagrams must be rendered only from fixed synthetic fixtures and never from the user's real Oura API.
+
+This is specifically the *domain truth gate* of `oura-design-director`; aesthetic source skill advice cannot override it.

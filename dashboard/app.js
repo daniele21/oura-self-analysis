@@ -1194,7 +1194,8 @@ function sleepPhaseCompare(report,data){
     a(wrap,hint("Per mostrare i valori giornalieri di entrambi i periodi senza estendere implicitamente la finestra dei dati, apri la vista "+necessary+" giorni.","info"));
     if(necessary>data.range.days){
       const b=e("button","period-expand","Apri "+necessary+" giorni per il confronto");
-      b.type="button";b.addEventListener("click",()=>load(necessary));a(wrap,b);
+      b.type="button";b.setAttribute("data-focus-key","sleep-expand-"+necessary);
+      b.addEventListener("click",()=>load(necessary));a(wrap,b);
     }else{
       a(wrap,hint("Anche con l'intervallo selezionato, le notti disponibili sono troppo vecchie per questo confronto. Verifica la sincronizzazione.","info"));
     }
@@ -1818,7 +1819,9 @@ function render(){
   if(before){
     const target=Array.from(root.querySelectorAll("[data-focus-key]")).find(
       item=>item.getAttribute("data-focus-key")===before);
-    if(target)target.focus({preventScroll:true});
+    const fallback=before.startsWith("sleep-expand-")
+      ? root.querySelector('[data-focus-key="sleep-period-select"]') : null;
+    if(target||fallback)(target||fallback).focus({preventScroll:true});
   }
 }
 function selectTab(tab){

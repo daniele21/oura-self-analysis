@@ -147,6 +147,29 @@ class TestPeriodComparisons(unittest.TestCase):
         self.assertEqual(hr_tail["delta"], -30)
         self.assertTrue(hr_tail["opposes_weekly_comparison"])
 
+    def test_editorial_review_ignores_tiny_directional_noise(self):
+        rows = make_rows()
+        for row in rows:
+            lag = (END - date.fromisoformat(row["day"])).days
+            if lag < 3:
+                row["sleep_minutes"] = 421
+            elif lag < 7:
+                row["sleep_minutes"] = 423
+            else:
+                row["sleep_minutes"] = 420
+            if lag < 7:
+                row["hrv_ms"] = 59
+                row["rhr_bpm"] = 49
+            else:
+                row["hrv_ms"] = 60
+                row["rhr_bpm"] = 48
+        payload = {
+            "sleep_intelligence": {"comparisons": pc.build(rows, today=END, group="sleep")},
+            "period_comparisons": pc.build(rows, today=END, group="recovery"),
+            "meta": {"last_observed_day": END.isoformat(), "age_days": 0},
+        }
+        self.assertEqual(build_review(payload)["patterns"], [])
+
     def test_missing_last_three_night_suppresses_short_trajectory(self):
         rows = make_rows()
         rows = [r for r in rows if r["day"] != dated(1)]
@@ -216,6 +239,10 @@ class TestIntegratedDashboard(unittest.TestCase):
             weekly_card["measurements"]["sleep_minutes_avg_delta"] += 42
             _, issues = inspect_payload(corrupted)
             self.assertIn("WEEKLY_INSIGHT_DIFFERENCE", [x["code"] for x in issues])
+            corrupted = deepcopy(payload)
+            corrupted["review"]["patterns"] = []
+            _, issues = inspect_payload(corrupted)
+            self.assertIn("REVIEW_INCONSISTENT", [x["code"] for x in issues])
             views = {span: dashboard_server.make_payload(db, days=span, today=END)
                      for span in (7, 30, 90)}
             checked, drift = inspect_ranges(views)

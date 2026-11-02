@@ -53,7 +53,7 @@ class TestMobileInformationArchitecture(unittest.TestCase):
     def test_sleep_phase_chart_exposes_both_views_and_units(self):
         code=(ROOT/"dashboard/app.js").read_text()
         self.assertIn("function sleepStageChart(data)",code)
-        self.assertIn("sleepStageChart(data),sleepWeekly(data)",code)
+        self.assertIn('sleepStageChart(data),periodComparisonView(data,"sleep")',code)
         self.assertIn('["composition","Composizione"]',code)
         self.assertIn('["trend","Trend 7 giorni"]',code)
         self.assertIn('["minutes","Minuti"]',code)

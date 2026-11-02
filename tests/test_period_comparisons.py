@@ -246,7 +246,8 @@ class TestIntegratedDashboard(unittest.TestCase):
             self.assertEqual(private_review["api_ranges_checked"], [7, 30, 90])
             self.assertFalse(any(x["code"].endswith("DIFFERENCE") or
                                  x["code"] == "COMPARISON_RANGE_DRIFT"
-                                 for x in private_review["issues"]))
+                                 for x in private_review["issues"]),
+                             [x["code"] for x in private_review["issues"]])
             self.assertFalse(any(issue["code"] == "COMPARISON_INCONSISTENCY"
                                  for issue in private_review["issues"]))
             self.assertIn("DATA_NOT_CURRENT",

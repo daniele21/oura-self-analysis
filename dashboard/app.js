@@ -1268,8 +1268,9 @@ function comparisonProfile(data,group,comparison,metric){
   const earlierDay=new Date(parseDay(end).getTime()-comparison.recent_days*86400000).toISOString().slice(0,10);
   const recentDates=daysArray(comparison.recent_days,end);
   const previousDates=daysArray(comparison.reference_days,earlierDay);
-  const available=new Set(source.map(r=>r.day));
-  if(!recentDates.every(d=>available.has(d))||!previousDates.every(d=>available.has(d))){
+  // Only the browser's explicitly selected calendar range may be plotted.
+  // Missing observations INSIDE that range remain holes, not permission errors.
+  if(previousDates[0]<data.range.start||recentDates[recentDates.length-1]>data.range.end){
     return {reason:"Per sovrapporre i due periodi senza esporre notti fuori dalla finestra selezionata, amplia la vista.",
       needed:comparison.recent_days+comparison.reference_days<=30?30:90};
   }

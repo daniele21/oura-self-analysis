@@ -5,7 +5,14 @@ risk predictions. Never use raw records or hidden historical daily observations.
 """
 from __future__ import annotations
 
-from datetime import date
+# Editorial noise filters only; these are NOT clinical thresholds.
+# Prevent infinitesimal sign changes from generating high-priority cards.
+MIN_SLEEP_TAIL_MINUTES = 30
+MIN_SLEEP_WEEK_MINUTES = 10
+MIN_HRV_DELTA_MS = 2
+MIN_HR_DELTA_BPM = 1
+MIN_HRV_DIRECTION_N = 5
+MIN_HR_DIRECTION_N = 4
 
 
 def _metric(report: dict | None, window: str, key: str) -> dict | None:
@@ -50,7 +57,9 @@ def build(payload: dict) -> dict:
         r, b = sleep_week["recent"], sleep_week["reference"]
         short_r, short_b = tail["latest_three"], tail["earlier_four"]
         if (r["valid_nights"] >= 6 and b["valid_nights"] >= 6
-                and short_r["valid_nights"] == 3 and short_b["valid_nights"] >= 3):
+                and short_r["valid_nights"] == 3 and short_b["valid_nights"] >= 3
+                and abs(sleep_week["delta"]) >= MIN_SLEEP_WEEK_MINUTES
+                and abs(tail["delta"]) >= MIN_SLEEP_TAIL_MINUTES):
             patterns.append({
                 "id": "weekly-masks-recent-sleep-shift",
                 "area": "sleep",
@@ -78,8 +87,12 @@ def build(payload: dict) -> dict:
     ):
         # Quality gate stricter than basic availability: 6/7+21/28
         # observations for BOTH paired metrics; do not imply paired counts.
-        if all(m["recent"]["valid_nights"] >= 6 and
-               m["reference"]["valid_nights"] >= 21 for m in (hrv, hr)):
+        if (all(m["recent"]["valid_nights"] >= 6 and
+                m["reference"]["valid_nights"] >= 21 for m in (hrv, hr))
+                and abs(hrv["delta"]) >= MIN_HRV_DELTA_MS
+                and abs(hr["delta"]) >= MIN_HR_DELTA_BPM
+                and (hrv.get("persistence") or {}).get("same_direction_n", 0) >= MIN_HRV_DIRECTION_N
+                and (hr.get("persistence") or {}).get("same_direction_n", 0) >= MIN_HR_DIRECTION_N):
             patterns.append({
                 "id": "hrv-hr-joint-direction",
                 "area": "recovery",
@@ -111,7 +124,7 @@ def build(payload: dict) -> dict:
         "age_days": payload.get("meta", {}).get("age_days"),
         "review_status": "historical" if payload.get("meta", {}).get("age_days") is not None
                            and payload["meta"]["age_days"] > 2 else "current_snapshot",
-        "selection_method": "two predeclared pattern families, source coverage and non-overlapping calendar windows",
+        "selection_method": "predeclared descriptive families, adequate coverage, directional persistence and non-clinical editorial noise filters",
         "patterns": patterns[:2],
         "limitations": "Priorità di lettura, non classifica clinica. L'assenza di pattern non garantisce benessere o recupero.",
     }

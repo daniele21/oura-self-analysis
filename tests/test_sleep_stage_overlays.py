@@ -91,7 +91,7 @@ class StageOverlayTests(unittest.TestCase):
         p=report["presets"]["7v7"]
         self.assertEqual(p["recent"]["end"],report["as_of_day"])
         # Add gaps within the anchored 7-day reference window.
-        for i in (7,8,9,10):
+        for i in (11,12,13,14):
             rows.pop((END-timedelta(days=i)).isoformat())
         result=overlays(trends(rows,days=30,today=END))["presets"]["7v7"]
         self.assertEqual(result["status"],"insufficient")

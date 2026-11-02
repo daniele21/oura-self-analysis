@@ -47,3 +47,7 @@ Document baseline fixture, the exact semantic question, proposed chart, states, 
 - Vercel Web Interface Guidelines: https://vercel.com/design/guidelines
 - W3C WCAG 2.2: https://www.w3.org/TR/WCAG22/
 - Oura local methodology: docs/scientific-methods.md
+
+## Privacy gate
+
+Real health records never enter CI, remote screenshots, cloud code-review or AI models. Privacy-safe charts are tested only with deterministic synthetic measurements. Maintain loopback-only API access and do not widen date-level visibility silently.

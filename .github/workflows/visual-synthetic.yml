@@ -37,6 +37,17 @@ jobs:
             sleep 1
           done
           python tests/browser/test_sleep_mobile.py --output visual-evidence/sonno
+          for scenario in empty sparse; do
+            if [[ "$scenario" == "empty" ]]; then port=8767; else port=8768; fi
+            python scripts/serve_synthetic_dashboard.py --port "$port" --scenario "$scenario" > "/tmp/oura-$scenario.log" 2>&1 &
+            fixture_server=$!
+            for i in $(seq 1 30); do
+              if curl --silent --fail "http://127.0.0.1:$port/" -o /dev/null; then break; fi
+              sleep 1
+            done
+            python tests/browser/test_sleep_states.py --base "http://127.0.0.1:$port" --scenario "$scenario" --output visual-evidence/sonno
+            kill "$fixture_server" 2>/dev/null || true
+          done
       - name: Upload SYNTHETIC screenshots only
         if: always()
         uses: actions/upload-artifact@v4

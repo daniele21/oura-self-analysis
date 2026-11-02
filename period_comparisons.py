@@ -165,6 +165,11 @@ def build(rows: list[dict] | Mapping[str, dict], *, today: date, group: str) -> 
         raise ValueError("Unsupported comparison group")
     by_day = (rows if isinstance(rows, Mapping)
               else {r["day"]: r for r in rows if isinstance(r.get("day"), str)})
+    if group == "sleep":
+        # Sleep Score can exist without a qualifying main overnight session.
+        # Keep all sleep metrics tied to the same long_sleep eligibility rule.
+        by_day = {day: (row if row.get("main_sleep_available") is True else {})
+                  for day, row in by_day.items()}
     specs = SLEEP_METRICS if group == "sleep" else RECOVERY_METRICS
     windows = {}
     for params in WINDOWS:

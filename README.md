@@ -2,6 +2,18 @@
 
 Personal Oura Ring data pipeline: **Oura API → local SQLite → local deterministic enrichment → optional Google Drive Desktop sync**. No cloud runtime, external AI, or credentials stored in this public repository.
 
+## Design and coding-agent workflows
+
+Oura Insights is undergoing a staged UX/UI redesign guided by [the source-code audit](docs/ux-audit-2026-11-02.md), [the proposed design system](docs/design-system-v1.md) and [the implementation roadmap](docs/ux-redesign-roadmap.md). The actual layout redesign is **not yet released**.
+
+Project coding agents start with [AGENTS.md](AGENTS.md) and three repo-local, vendor-neutral Agent Skills:
+
+- [oura-product-design](.agents/skills/oura-product-design/SKILL.md): information architecture, visual direction, mobile interaction and screen hierarchy
+- [oura-health-charts](.agents/skills/oura-health-charts/SKILL.md): faithful plots, comparative windows, missingness and valid sample coverage
+- [oura-visual-qa](.agents/skills/oura-visual-qa/SKILL.md): synthetic-only responsive, keyboard and accessibility verification before frontend releases
+
+Reference skills (Anthropic frontend-design, Vercel web-design-guidelines and others) are evaluated in the audit but **not blindly installed or executed**. Real Oura readings must not be used in CI screenshots, hosted design tools, public PRs or LLM prompts.
+
 ## Mobile dashboard — Oura Insights
 
 New: **responsive read-only web dashboard** with four sections (Oggi, Trend, Insight, Allenamenti), 7/30/90-day line charts, evidence-linked explanations, and missing-data visibility. It reads the *real local SQLite data* through a tightly limited Python HTTP API; it contains **no sample patient data**.

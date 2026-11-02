@@ -1143,7 +1143,7 @@ function sleepPhaseOverlayPanel(phase,comparison,unit,markers){
       if(aRows.length<=7 || i%3===0){
         const point=s("circle",{cx:xOf(i),cy:yOf(value),r:2.6,
           class:"sleep-overlay-point "+type});
-        a(point,s("title",{},type==="recent"?"A ":"B "+""+
+        a(point,s("title",{},(type==="recent"?"A ":"B ")+
            "G"+(i+1)+" · "+shortDate(r.day)+" · "+phase.label+" "+shown(value)));
         a(svg,point);
       }

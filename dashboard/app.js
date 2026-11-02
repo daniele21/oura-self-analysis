@@ -1264,7 +1264,8 @@ function comparisonProfile(data,group,comparison,metric){
   const source=group==="sleep"?data.sleep_intelligence?.nights:data.records;
   if(!Array.isArray(source))return {reason:"Serie giornaliera non disponibile."};
   const byDay=new Map(source.map(r=>[r.day,r]));
-  const end=data.range.end;
+  const report=group==="sleep"?data.sleep_intelligence?.comparisons:data.period_comparisons;
+  const end=report?.as_of_day||data.range.end;
   const earlierDay=new Date(parseDay(end).getTime()-comparison.recent_days*86400000).toISOString().slice(0,10);
   const recentDates=daysArray(comparison.recent_days,end);
   const previousDates=daysArray(comparison.reference_days,earlierDay);
@@ -1347,6 +1348,11 @@ function periodComparisonView(data,group){
   a(wrap,heading(group==="sleep"?"Come cambia il tuo sonno":"Come cambia il recupero",
     "Confronti su periodi non sovrapposti"));
   const card=panel("period-compare");
+  if(report.as_of_day&&report.as_of_day!==data.range.end){
+    a(card,hint("Confronti calcolati fino all'ultima notte misurata: "+
+      fullDate(report.as_of_day)+". Il periodo non coincide con la data di oggi; "+
+      "aggiorna la sincronizzazione per includere le notti successive.","clock"));
+  }
   const windowChoices=[["7v7","7 vs 7 giorni"],["7v28","7 vs 28 giorni"],["28v28","28 vs 28 giorni"]];
   if(!report.windows[state.comparison[group]])state.comparison[group]=report.default_window;
   const selected=comparisonPeriodRow(data,group);
@@ -1380,6 +1386,16 @@ function periodComparisonView(data,group){
     a(summary,box);
   });
   a(card,summary);
+  const tail=report.recent_week_trajectory?.metrics?.find(m=>m.key===metric.key);
+  if(tail&&tail.delta!==null){
+    const delta=(tail.delta>0?"+":"")+comparisonValue(tail.delta,metric.unit);
+    const desc="Ultime 3 notti ("+shortDate(report.recent_week_trajectory.recent_span[0])+
+      "–"+shortDate(report.recent_week_trajectory.recent_span[1])+") vs prime 4 della stessa settimana: "+delta+". ";
+    const direction=tail.opposes_weekly_comparison?
+      "La direzione è diversa dal confronto complessivo 7 vs 7: una media settimanale può nascondere cambiamenti recenti. ":
+      "Il risultato è descrittivo su pochi giorni. ";
+    a(card,hint(desc+direction+"Non è una misura clinica di miglioramento o peggioramento.","trend"));
+  }
   const label=e("div","chart-legend");
   a(label,e("span","legend-item","● Periodo recente"),e("span","legend-item compare-previous-label","● Riferimento"));
   a(card,label);

@@ -1841,8 +1841,15 @@ async function load(days=state.days){
       notice.hidden=false;
     }
   }catch(err){
-    if(!state.data)root.replaceChildren(empty("Non ci sono ancora dati",
-      "La dashboard è pronta. Esegui il sync Oura sul Mac per popolarla.","info"));
+    if(!state.data){
+      shell(null);render();
+      const fallback=e("div","sleep-dashboard");
+      if(state.tab==="sleep")
+        a(fallback,e("h1","sleep-main-title","Come cambia il tuo sonno"));
+      a(fallback,empty("Dati non disponibili",
+        "La dashboard non ha potuto caricare le misurazioni. Controlla il sync Oura sul Mac e riprova.","info"));
+      root.replaceChildren(fallback);
+    }
     notice.textContent=err.name==="AbortError"?"Il caricamento richiede troppo tempo. Riprova.":
       (err.message||"Impossibile caricare i dati.");
     notice.hidden=false;shell(state.data);

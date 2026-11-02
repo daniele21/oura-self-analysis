@@ -1693,7 +1693,7 @@ function sleepView(data){
   const overview=e("section","sleep-overview");
   const intro=e("div","sleep-intro");
   a(intro,e("p","sleep-kicker","Osserva · Confronta · Approfondisci"),
-    e("h2","sleep-main-title","Come cambia il tuo sonno"),
+    e("h1","sleep-main-title","Come cambia il tuo sonno"),
     e("p","sleep-main-description",
       "Confronta leggero, profondo e REM. Le variazioni sono stime Oura, non valutazioni cliniche."));
   const facts=e("div","sleep-context");

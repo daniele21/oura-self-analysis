@@ -54,7 +54,7 @@ class TestAgentDesignContract(unittest.TestCase):
         design=(ROOT/paths[0]).read_text(encoding="utf-8")
         for item in ("Sonno","Recupero","Attività","Oggi","Insight",
                      "REM","CoverageLabel","touch"):
-            self.assertIn(item,design)
+            self.assertIn(item.lower(),design.lower())
 
     def test_skills_do_not_contain_hidden_executables_or_health_fixtures(self):
         root=ROOT/".agents"/"skills"

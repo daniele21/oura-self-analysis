@@ -257,7 +257,9 @@ def build(db:Path,*,days:int=30,today:date|None=None)->dict:
     if not 7<=days<=90: raise ValueError("Sleep window must be 7-90 days.")
     today=today or date.today()
     first=today-timedelta(days=days-1)
-    grouped=daily_records(db,first-timedelta(days=14),today)
+    # Read enough private history for 28v28 even when only seven nights are visible.
+    # Older per-night records never leave this module via the comparison report.
+    grouped=daily_records(db,first-timedelta(days=max(14,56-days)),today)
     rows={key:extract(key,groups) for key,groups in grouped.items()}
     recent=week(rows,today)
     previous=week(rows,today-timedelta(days=7))
@@ -281,12 +283,14 @@ def build(db:Path,*,days:int=30,today:date|None=None)->dict:
     latest=next((r["day"] for r in reversed(nights) if r["main_sleep_available"]),None)
     from sleep_stage_trends import build as build_stages
     stage_trends = build_stages(rows, days=days, today=today)
+    from period_comparisons import build as build_comparisons
+    comparisons = build_comparisons(rows, today=today, group="sleep")
     return {"schema_version":"2.0","method":"Deterministic local descriptive sleep analysis",
             "window":{"start":first.isoformat(),"end":today.isoformat(),"days":days},
             "weekly":{"recent":recent,"previous":previous,
                       "delta_recent_vs_previous":deltas,"history":history},
             "nights":nights,"daily_comparisons":comparisons,"latest_main_sleep_day":latest,
-            "stage_trends":stage_trends,
+            "stage_trends":stage_trends,"comparisons":comparisons,
             "sources":STUDIES,
             "limitations":[
                 "Finestre di sette giorni di calendario ancorate alla data del report, non settimane ISO.",

@@ -15,7 +15,7 @@ def check(base: str, output: Path, scenario: str) -> None:
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         try:
-            for width in WIDTHS if scenario == "complete" else (320, 375, 768):
+            for width in WIDTHS if scenario in ("complete", "stale") else (320, 375, 768):
                 page = browser.new_page(viewport={"width": width, "height": 850},
                                         reduced_motion="reduce", device_scale_factor=1)
                 errors = []
@@ -40,13 +40,18 @@ def check(base: str, output: Path, scenario: str) -> None:
                         assert not page.locator(".recovery-deeper").evaluate("(el) => el.open")
                         assert page.locator(".recovery-range-bar").is_visible()
                         assert page.locator("#cardio-night-select").count() == 1
-                        if scenario == "complete":
+                        if scenario in ("complete", "stale"):
                             assert page.locator(".recovery-timeline-svg").count() == 2
                             assert page.locator(".recovery-chart-baseline").count() == 2
                             assert page.locator(".recovery-data-table").count() == 2
                         else:
                             # Sparse records remain sparse: no invented physiological medians.
                             assert "—" in page.locator(".recovery-signals").inner_text()
+                    if scenario == "stale":
+                        assert page.get_by_text("Da aggiornare", exact=True).count() >= 1
+                        assert page.locator("#notice").is_visible()
+                        assert "Ultima osservazione del" in page.locator("#notice").inner_text()
+                        assert "Confronti aggiornati al" in page.locator(".recovery-context").inner_text()
                     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"), (
                         f"horizontal page overflow at {width}px, scenario={scenario}")
                     if scenario == "complete":
@@ -69,7 +74,7 @@ def check(base: str, output: Path, scenario: str) -> None:
                           return results;
                         }""")
                         assert not axis_problems, f"unreadable axis at {width}px: {axis_problems}"
-                    if width in (375, 1280):
+                    if scenario in ("complete", "stale") or width == 375:
                         page.screenshot(path=str(output / f"recupero-{scenario}-{width}.png"),
                                         full_page=True)
                     if scenario == "complete":
@@ -101,7 +106,7 @@ def check(base: str, output: Path, scenario: str) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="http://127.0.0.1:8766")
-    parser.add_argument("--scenario", default="complete", choices=("complete", "sparse", "empty"))
+    parser.add_argument("--scenario", default="complete", choices=("complete", "sparse", "empty", "stale"))
     parser.add_argument("--output", default="visual-evidence/recupero")
     args = parser.parse_args()
     check(args.base, Path(args.output), args.scenario)

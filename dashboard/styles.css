@@ -671,3 +671,16 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
 .sleep-dashboard .sleep-night-rail {display:flex;max-width:100%;width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
 .sleep-dashboard .sleep-date-picker {min-width:0;max-width:100%}
 .sleep-dashboard .sleep-date-picker select {min-width:0;max-width:100%;width:100%}
+
+
+/* Readable SVG type after compact viewBox scaling; mobile bottom nav labels. */
+.sleep-dashboard .sleep-overlay-svg .sleep-phase-axis {font-size:15px;fill:var(--sleep-secondary)}
+@media(max-width:800px){
+ .view-sleep .mobile-nav-btn {min-height:52px;color:var(--sleep-secondary);font-size:11px}
+ .view-sleep .mobile-nav-btn.is-active {color:var(--sleep-accent)}
+}
+@media(min-width:1000px) {
+ .sleep-dashboard .sleep-night-detail > .section-block > .sleep-night-detail {
+   grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr)
+ }
+}

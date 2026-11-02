@@ -383,12 +383,11 @@ def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[l
     from period_comparisons import build as build_period_comparisons
     # For stale datasets, do not put unobserved days into the recent
     # 7-calendar-night sample. The date is exported explicitly to the UI.
-    from period_comparisons import _valid as comparison_valid
     latest_recovery_day = max(
         (row["day"] for row in context_history
          if row.get("day", "") <= today.isoformat()
-         and (comparison_valid(row.get("hrv_ms"), "hrv_ms") is not None
-              or comparison_valid(row.get("rhr_bpm"), "rhr_bpm") is not None)),
+         and (plausible(row.get("hrv_ms"), 1, 250) is not None
+              or plausible(row.get("rhr_bpm"), 25, 150) is not None)),
         default=today.isoformat())
     period_comparisons = build_period_comparisons(
         context_history, today=date.fromisoformat(latest_recovery_day), group="recovery")

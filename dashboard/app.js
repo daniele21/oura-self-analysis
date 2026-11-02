@@ -1,6 +1,6 @@
 /* Private Oura dashboard: all health data stays in memory and is never cached. */
 "use strict";
-const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, stageMode:"composition", stageUnit:"minutes", stageComparePreset:"7v7", comparison:{sleep:"7v7",recovery:"7v28"}, comparisonMetric:{sleep:"sleep_minutes",recovery:"hrv_ms"}, data:null, loading:false, nightAbort:null };
+const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, stageMode:"compare", stageUnit:"minutes", stageComparePreset:"7v7", comparison:{sleep:"7v7",recovery:"7v28"}, comparisonMetric:{sleep:"sleep_minutes",recovery:"hrv_ms"}, data:null, loading:false, nightAbort:null };
 const root = document.getElementById("view-root");
 const notice = document.getElementById("notice");
 const spinner = document.getElementById("load-state");
@@ -132,6 +132,7 @@ function segment(values,current,callback){
   values.forEach(val=>{
     const btn=e("button",current===val?"selected":"",val+" giorni");
     btn.type="button";btn.setAttribute("aria-pressed",String(current===val));
+    btn.setAttribute("data-focus-key","range-"+val);
     btn.addEventListener("click",()=>callback(val));a(div,btn);
   });
   return div;
@@ -976,6 +977,7 @@ function sleepDaily(data){
   const label=e("label","", "Notte da analizzare");
   label.htmlFor="sleep-date-select";
   const select=e("select","sleep-select");select.id="sleep-date-select";
+  select.setAttribute("data-focus-key","sleep-night-select");
   nights.forEach(n=>{
     const opt=e("option","",fullDate(n.day));
     opt.value=n.day;opt.selected=n.day===state.sleepDay;a(select,opt);
@@ -1104,7 +1106,11 @@ function sleepPhaseOverlayPanel(phase,comparison,unit,markers){
     compact("B · precedente",shown(bv),"reference"),
     compact("A − B",shownDelta,"delta"));
   a(metric,title,row);a(wrap,metric);
-  const W=720,H=170,L=49,R=14,T=15,B=34,plotWidth=W-L-R,plotHeight=H-T-B;
+  // Keep physical SVG axis text readable at 320px and in desktop small multiples.
+  // A wide viewBox shrunk into a narrow card makes its 15px font render at ~10px.
+  const midWidth=window.matchMedia("(min-width:600px) and (max-width:999px)").matches;
+  const W=midWidth?640:270,H=midWidth?216:178,L=midWidth?52:48,R=midWidth?13:11,T=15,B=33;
+  const plotWidth=W-L-R,plotHeight=H-T-B;
   const get=(x)=>num(x?.[phase.key+"_"+unit]);
   const values=[...aRows.map(get),...bRows.map(get)].filter(v=>v!==null);
   const peak=values.length?Math.max(...values):0;
@@ -1112,14 +1118,16 @@ function sleepPhaseOverlayPanel(phase,comparison,unit,markers){
     Math.max(30,Math.ceil(peak*1.12/30)*30);
   const yOf=v=>T+(1-v/maxY)*plotHeight;
   const xOf=i=>L+plotWidth*(aRows.length===1?.5:i/(aRows.length-1));
-  const svg=s("svg",{viewBox:"0 0 720 170",class:"sleep-overlay-svg",
+  const svg=s("svg",{viewBox:"0 0 "+W+" "+H,class:"sleep-overlay-svg",
     role:"img","aria-label":phase.label+" confronto sovrapposto: A recente linea continua, B precedente tratteggiata"});
   a(svg,s("title",{},"Confronto "+phase.label+" nei "+comparison.days_per_period+" giorni dei due periodi"));
   for(let i=0;i<=3;i++){
     const value=maxY*i/3,y=yOf(value);
     a(svg,s("line",{x1:L,y1:y,x2:W-R,y2:y,class:"sleep-phase-grid"}),
       s("text",{x:L-7,y:y+4,"text-anchor":"end",class:"sleep-phase-axis"},
-        format(value,0)+(i===3?" "+suffix:"")));
+        // Units are announced by the selected Minutes / Percentage control;
+        // putting "300 min" on a compact Y tick clipped the first glyphs.
+        format(value,0)));
   }
   const labels=[0,Math.floor((aRows.length-1)/2),aRows.length-1];
   [...new Set(labels)].forEach(i=>{
@@ -1174,6 +1182,7 @@ function sleepPhaseCompare(report,data){
   [["7v7","Ultimi 7 vs 7 precedenti"],["30v30","Ultimi 30 vs 30 precedenti"]].forEach(([key,label])=>{
     const opt=e("option","",label);opt.value=key;opt.selected=state.stageComparePreset===key;a(select,opt);
   });
+  select.setAttribute("data-focus-key","sleep-period-select");
   select.addEventListener("change",()=>{state.stageComparePreset=select.value;render();});
   a(chooser,select);a(wrap,chooser);
   const selected=compare.presets[state.stageComparePreset];
@@ -1187,7 +1196,8 @@ function sleepPhaseCompare(report,data){
     a(wrap,hint("Per mostrare i valori giornalieri di entrambi i periodi senza estendere implicitamente la finestra dei dati, apri la vista "+necessary+" giorni.","info"));
     if(necessary>data.range.days){
       const b=e("button","period-expand","Apri "+necessary+" giorni per il confronto");
-      b.type="button";b.addEventListener("click",()=>load(necessary));a(wrap,b);
+      b.type="button";b.setAttribute("data-focus-key","sleep-expand-"+necessary);
+      b.addEventListener("click",()=>load(necessary));a(wrap,b);
     }else{
       a(wrap,hint("Anche con l'intervallo selezionato, le notti disponibili sono troppo vecchie per questo confronto. Verifica la sincronizzazione.","info"));
     }
@@ -1222,6 +1232,7 @@ function sleepPhaseCompare(report,data){
   slider.type="range";slider.min="0";slider.max=String(A.daily.length-1);
   slider.step="1";slider.value=String(A.daily.length-1);
   slider.setAttribute("aria-label","Scegli il giorno corrispondente dei due periodi");
+  slider.setAttribute("data-focus-key","sleep-overlay-cursor");
   const output=e("output","sleep-phase-readout");
   a(label,slider);
   function inspect(){
@@ -1265,8 +1276,13 @@ function sleepPhaseCompare(report,data){
 
 function sleepStageChart(data){
   const report=data.sleep_intelligence?.stage_trends;
-  const wrap=section();
-  a(wrap,heading("Fasi del sonno nel tempo","Leggero, profondo e REM · confronta durata e composizione"));
+  const wrap=section();wrap.classList.add("sleep-stage-hero");
+  const header=e("div","sleep-stage-heading");
+  const headText=e("div","sleep-stage-heading-text");
+  a(headText,e("span","sleep-stage-overline","Esplora le fasi"),
+    e("h2","","Leggero, profondo e REM"));
+  a(header,headText,e("span","sleep-stage-method","Fasi stimate · Oura"));
+  a(wrap,header);
   if(!report)return empty("Andamento delle fasi non disponibile","Il report del sonno non contiene ancora lo storico delle fasi.","moon");
   const panelEl=panel("sleep-phase-panel");
   const controls=e("div","sleep-phase-controls");
@@ -1278,6 +1294,7 @@ function sleepStageChart(data){
       const b=e("button","sleep-phase-pill"+(current===key?" active":""),
         label);
       b.type="button";b.setAttribute("aria-pressed",String(key===current));
+      b.setAttribute("data-focus-key","sleep-"+title+"-"+key);
       b.addEventListener("click",()=>{update(key);render();});a(group,b);
     });
     return group;
@@ -1417,6 +1434,7 @@ function sleepStageChart(data){
   slider.step="1";slider.value=String(lastIndex);
   const output=e("output","sleep-phase-readout");
   slider.setAttribute("aria-label","Seleziona la notte o il periodo da visualizzare");
+  slider.setAttribute("data-focus-key","sleep-phase-cursor");
   sliderLabel.append(slider);
   function inspect(){
     const idx=Number(slider.value),row=series[idx];
@@ -1675,11 +1693,39 @@ function periodComparisonView(data,group){
 
 function sleepView(data){
   if(!data.sleep_intelligence)return empty("Modulo non disponibile","Aggiorna il motore Oura sul Mac.","moon");
-  const wrap=e("div"),tools=e("div","trend-toolbox");
-  a(tools,e("span","section-subtitle","Esplora 7, 30 o 90 giorni"),
+  const sleep=data.sleep_intelligence,trend=sleep.stage_trends||{};
+  const days=trend.daily||[],qualified=days.filter(d=>d.valid).length;
+  const lastValid=trend.overlays?.as_of_day||null;
+  const wrap=e("div","sleep-dashboard");
+  const overview=e("section","sleep-overview");
+  const intro=e("div","sleep-intro");
+  a(intro,e("p","sleep-kicker","Osserva · Confronta · Approfondisci"),
+    e("h1","sleep-main-title","Come cambia il tuo sonno"),
+    e("p","sleep-main-description",
+      "Confronta leggero, profondo e REM. Le variazioni sono stime Oura, non valutazioni cliniche."));
+  const facts=e("div","sleep-context");
+  const last=e("div","sleep-context-fact");
+  a(last,e("span","sleep-context-label","Ultima notte con fasi complete"),
+    e("strong","",lastValid?fullDate(lastValid):"Non disponibile"));
+  const coverage=e("div","sleep-context-fact");
+  a(coverage,e("span","sleep-context-label","Copertura nel periodo"),
+    e("strong","",qualified+"/"+days.length+" notti valide"));
+  a(facts,last,coverage);
+  a(overview,intro,facts);
+  const range=e("div","sleep-range-bar");
+  a(range,e("span","sleep-range-label","Intervallo dei dati"),
     segment([7,30,90],state.days,n=>load(n)));
-  a(wrap,tools,sleepStageChart(data),periodComparisonView(data,"sleep"),sleepWeekly(data),sleepDaily(data),
-    hint("Le analisi descrivono variazioni personali, non diagnosticano disturbi del sonno. L'assenza di dati non significa assenza di sonno.","shield"));
+  a(wrap,overview,range,sleepStageChart(data));
+  const nightDetail=e("div","sleep-night-detail");
+  a(nightDetail,sleepDaily(data));
+  a(wrap,nightDetail);
+  const deeper=e("details","sleep-deeper-analysis");
+  const toggle=e("summary","sleep-deeper-toggle");
+  a(toggle,e("span","","Altre analisi del sonno"),
+    e("small","","Durata, efficienza e confronti approfonditi"),icon("chevron"));
+  a(deeper,toggle,periodComparisonView(data,"sleep"),sleepWeekly(data),
+    hint("Le associazioni descrivono variazioni personali. Una notte mancante non significa assenza di sonno.","shield"));
+  a(wrap,deeper);
   return wrap;
 }
 function trainingView(data){
@@ -1752,7 +1798,11 @@ function shell(data){
     meta.age_days>2?"Da aggiornare":"Dati locali";
 }
 function render(){
+  // Keep focus when replacing the view DOM after changing a mode or unit.
+  // The focused key is a local constant, not user/health data.
+  const before=document.activeElement?.getAttribute?.("data-focus-key");
   const entry=labels[state.tab];
+  document.body.classList.toggle("view-sleep",state.tab==="sleep");
   const name=document.getElementById("page-title");
   name.textContent=entry[0];a(name,e("span","teal-dot","."));
   document.getElementById("page-subtitle").textContent=entry[1];
@@ -1768,6 +1818,13 @@ function render(){
   if(!state.data)return;
   const views={today:todayView,sleep:sleepView,recovery:recoveryView,insights:insightsView,training:trainingView};
   a(root,views[state.tab](state.data));
+  if(before){
+    const target=Array.from(root.querySelectorAll("[data-focus-key]")).find(
+      item=>item.getAttribute("data-focus-key")===before);
+    const fallback=before.startsWith("sleep-expand-")
+      ? root.querySelector('[data-focus-key="sleep-period-select"]') : null;
+    if(target||fallback)(target||fallback).focus({preventScroll:true});
+  }
 }
 function selectTab(tab){
   if(tab==="trends")tab="recovery";
@@ -1793,8 +1850,15 @@ async function load(days=state.days){
       notice.hidden=false;
     }
   }catch(err){
-    if(!state.data)root.replaceChildren(empty("Non ci sono ancora dati",
-      "La dashboard è pronta. Esegui il sync Oura sul Mac per popolarla.","info"));
+    if(!state.data){
+      shell(null);render();
+      const fallback=e("div","sleep-dashboard");
+      if(state.tab==="sleep")
+        a(fallback,e("h1","sleep-main-title","Come cambia il tuo sonno"));
+      a(fallback,empty("Dati non disponibili",
+        "La dashboard non ha potuto caricare le misurazioni. Controlla il sync Oura sul Mac e riprova.","info"));
+      root.replaceChildren(fallback);
+    }
     notice.textContent=err.name==="AbortError"?"Il caricamento richiede troppo tempo. Riprova.":
       (err.message||"Impossibile caricare i dati.");
     notice.hidden=false;shell(state.data);

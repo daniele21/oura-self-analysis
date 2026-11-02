@@ -1,0 +1,58 @@
+name: Synthetic Visual QA
+
+on:
+  pull_request:
+    paths:
+      - "dashboard/**"
+      - "tests/browser/**"
+      - "scripts/serve_synthetic_dashboard.py"
+      - ".github/workflows/visual-synthetic.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pinned local Playwright browser
+        run: |
+          python -m pip install "playwright==1.56.0"
+          python -m playwright install --with-deps chromium
+      - name: Browser layout and interaction on synthetic Oura fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/serve_synthetic_dashboard.py --port 8766 > /tmp/oura-synthetic-server.log 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:8766/ -o /dev/null; then break; fi
+            sleep 1
+          done
+          python tests/browser/test_sleep_mobile.py --output visual-evidence/sonno
+          for scenario in empty sparse; do
+            if [[ "$scenario" == "empty" ]]; then port=8767; else port=8768; fi
+            python scripts/serve_synthetic_dashboard.py --port "$port" --scenario "$scenario" > "/tmp/oura-$scenario.log" 2>&1 &
+            fixture_server=$!
+            for i in $(seq 1 30); do
+              if curl --silent --fail "http://127.0.0.1:$port/" -o /dev/null; then break; fi
+              sleep 1
+            done
+            python tests/browser/test_sleep_states.py --base "http://127.0.0.1:$port" --scenario "$scenario" --output visual-evidence/sonno
+            kill "$fixture_server" 2>/dev/null || true
+          done
+      - name: Upload SYNTHETIC screenshots only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-sonno-responsive
+          path: visual-evidence/sonno/*.png
+          if-no-files-found: ignore
+          retention-days: 7

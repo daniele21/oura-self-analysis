@@ -228,6 +228,32 @@ function qualityCard(data){
     data.range.days+". I giorni senza dati non vengono inventati."));
   return p;
 }
+function priorityReviewView(data){
+  const review=data.review;
+  if(!review?.patterns?.length)return null;
+  const wrap=section(),grid=e("div","priority-review-grid");
+  a(wrap,heading("Cosa vale la pena approfondire",
+    "Selezione descrittiva: non è una classifica della salute"));
+  review.patterns.forEach((pattern,index)=>{
+    const card=panel("priority-review-card");
+    a(card,e("span","priority-review-label","SPUNTO "+(index+1)+" · "+(pattern.area==="sleep"?"SONNO":"RECUPERO")),
+      e("h3","priority-review-title",pattern.title),
+      e("p","priority-review-copy",pattern.summary),
+      e("p","coverage-description","Perché viene mostrato: "+pattern.priority_reason));
+    const btn=e("button","ghost-link",
+      pattern.area==="sleep"?"Esplora il sonno":"Esplora il recupero");
+    btn.type="button";
+    btn.addEventListener("click",()=>selectTab(pattern.area==="sleep"?"sleep":"recovery"));
+    a(card,btn);
+    a(grid,card);
+  });
+  a(wrap,grid);
+  if(review.review_status==="historical")
+    a(wrap,hint("Le osservazioni si riferiscono a dati aggiornati fino al "+
+      fullDate(review.as_of_day)+", non alla notte odierna.","clock"));
+  a(wrap,e("p","coverage-description",review.limitations));
+  return wrap;
+}
 function todayView(data){
   if(!data.records.length)return empty("Nessun dato","Esegui il sync Oura sul Mac.");
   const last=data.records[data.records.length-1],wrap=e("div");
@@ -256,6 +282,8 @@ function todayView(data){
   a(layout,trendCard(data,"hrv_ms",true),qualityCard(data));
   a(summarySection,heading("Il quadro generale","Esplora i trend",()=>selectTab("trends")),layout);
   a(wrap,summarySection);
+  const review=priorityReviewView(data);
+  if(review)a(wrap,review);
   const extras=section(),grid=e("div","cards-grid");
   a(grid,statCard("Respirazione",format(last.respiratory_rate_per_min,1),"atti/min","Media durante il sonno","activity","blue"),
     statCard("Efficienza",format(last.sleep_efficiency_pct),"%","Tempo effettivamente dormito","moon"),
@@ -749,6 +777,8 @@ function insightCard(item){
 }
 function insightsView(data){
   const wrap=e("div");
+  const selected=priorityReviewView(data);
+  if(selected)a(wrap,selected);
   a(wrap,heading(data.insights.length+" osservazioni","Regole deterministiche, non AI"));
   const list=e("div","insight-list");
   if(!data.insights.length)a(list,empty("Nessun insight disponibile",

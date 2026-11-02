@@ -1,7 +1,7 @@
 # Oura Insights — UX/UI redesign roadmap
 
 Date: 2026-11-02  
-Status: P0 design governance integrated. Actual visual redesign remains a separate change, gated by synthetic browser QA and privacy review.  
+Status: P0 multi-source design governance integrated. Actual visual redesign remains separate, gated by synthetic browser QA and privacy review.  
 Product: Oura Insights, local SQLite + Python HTTP + vanilla JS/CSS PWA.
 
 ## Design thesis
@@ -13,6 +13,8 @@ Inputs:
 - docs/design-system-v1.md (visual direction and tokens)
 - docs/scientific-methods.md (metric semantics)
 - docs/sleep-stage-overlay-comparison-plan.md (new 7v7/30v30 feature)
+- docs/design-skill-synthesis.md (eight verified public sources, adaptations, provenance)
+- .agents/skills/oura-design-director/SKILL.md (multi-source orchestrator)
 - .agents/skills/oura-product-design/SKILL.md
 - .agents/skills/oura-health-charts/SKILL.md
 - .agents/skills/oura-visual-qa/SKILL.md
@@ -21,7 +23,7 @@ Inputs:
 
 | ID | Scope | Depends on | Parallel possible? | Acceptance / gate |
 |---|---|---|---|---|
-| UX-00 | Design audit + IA + token proposal + AGENTS.md + 3 project skills | None | complete | Repo files, CI validates SKILL.md format |
+| UX-00 | Design audit + IA + token proposal + AGENTS.md + 4 project skills + source synthesis | None | complete | Repo files, CI validates SKILL.md format |
 | UX-01 | Synthetic browser harness (one deterministic mock payload per API range; no real health data), keyboard journey, accessible locators, screenshots for 320/375/768/1280 | UX-00 | With UX-02 | Reproducible snapshots in PR, zero network telemetry/external patient data |
 | UX-02 | Extract CSS tokens and reusable visual components: PageHeader, RangeControls, CoverageLabel, DataTable, ChartLegend | UX-00 | With UX-01 | No changed physiological results; colors/units consistent; visual baselines reviewed |
 | UX-03 | Prototype redesigned **Sonno** screen: context > hero stage chart > compare periods > night > methods | UX-01 + UX-02 | Core critical path | Compare 7v7 in max 2 interactions; explicit valid n/N; 320/375 widths pass |
@@ -94,6 +96,6 @@ These can assist reviews when available to the user's chosen coding agent; they 
 
 ## Release status
 
-- AGENTS.md, three native SKILL.md files, docs/design-system-v1.md, UX audit and this roadmap are initial artifacts of the design refactor.
+- AGENTS.md, four native SKILL.md files, eight-source synthesis, docs/design-system-v1.md, UX audit and this roadmap are initial artifacts of the design refactor.
 - No new health-data APIs or external services.
 - The substantive layout redesign is **not yet delivered**. Do not describe it as deployed until dedicated browser QA and final self-hosted verification pass.

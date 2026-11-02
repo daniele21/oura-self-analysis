@@ -1271,8 +1271,10 @@ function sleepStageChart(data){
   const report=data.sleep_intelligence?.stage_trends;
   const wrap=section();wrap.classList.add("sleep-stage-hero");
   const header=e("div","sleep-stage-heading");
-  a(header,e("div","sleep-stage-heading-text",e("span","sleep-stage-overline","Esplora le fasi"),e("h2","","Leggero, profondo e REM")),
-    e("span","sleep-stage-method","Fasi stimate · Oura"));
+  const headText=e("div","sleep-stage-heading-text");
+  a(headText,e("span","sleep-stage-overline","Esplora le fasi"),
+    e("h2","","Leggero, profondo e REM"));
+  a(header,headText,e("span","sleep-stage-method","Fasi stimate · Oura"));
   a(wrap,header);
   if(!report)return empty("Andamento delle fasi non disponibile","Il report del sonno non contiene ancora lo storico delle fasi.","moon");
   const panelEl=panel("sleep-phase-panel");
@@ -1695,12 +1697,13 @@ function sleepView(data){
     e("p","sleep-main-description",
       "Confronta leggero, profondo e REM. Le variazioni sono stime Oura, non valutazioni cliniche."));
   const facts=e("div","sleep-context");
-  a(facts,e("div","sleep-context-fact",
-      e("span","sleep-context-label","Ultima notte con fasi complete"),
-      e("strong","",lastValid?fullDate(lastValid):"Non disponibile")),
-    e("div","sleep-context-fact",
-      e("span","sleep-context-label","Copertura nel periodo"),
-      e("strong","",qualified+"/"+days.length+" notti valide")));
+  const last=e("div","sleep-context-fact");
+  a(last,e("span","sleep-context-label","Ultima notte con fasi complete"),
+    e("strong","",lastValid?fullDate(lastValid):"Non disponibile"));
+  const coverage=e("div","sleep-context-fact");
+  a(coverage,e("span","sleep-context-label","Copertura nel periodo"),
+    e("strong","",qualified+"/"+days.length+" notti valide"));
+  a(facts,last,coverage);
   a(overview,intro,facts);
   const range=e("div","sleep-range-bar");
   a(range,e("span","sleep-range-label","Intervallo dei dati"),

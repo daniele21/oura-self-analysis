@@ -172,8 +172,11 @@ def main() -> int:
         # in a runner log. Run this locally, inspecting the private DB if needed.
         print("AUDIT_FAILED; private details were not printed")
         return 1
-    failures = sum(x["code"] == "COMPARISON_INCONSISTENCY" for x in result["issues"])
-    print(f"AUDIT_{'FAILED' if failures else 'COMPLETED'} checks={result['checks_executed']} inconsistencies={failures}")
+    failures = sum(item["code"] in ("COMPARISON_INCONSISTENCY", "GROUP_MISMATCH") or
+                   is_structural_problem(item) for item in result["issues"])
+    print(f"AUDIT_{'FAILED' if failures else 'COMPLETED'} "
+          f"comparison_checks={result['checks_executed']} "
+          f"api_checks={result['api_checks_executed']} inconsistencies={failures}")
     print("Aggregate report saved under the private local Application Support directory.")
     return 1 if failures else 0
 

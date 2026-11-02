@@ -380,6 +380,8 @@ def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[l
     from cardio_context_analysis import explain as explain_cardio_context
     cardio_context = evaluate_cardio_context(context_history, meta["window_end"])
     insights.extend(explain_cardio_context(cardio_context))
+    from period_comparisons import build as build_period_comparisons
+    period_comparisons = build_period_comparisons(context_history, today=today, group="recovery")
     return rows, {
         "schema_version": ANALYTICS_VERSION,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -389,6 +391,7 @@ def analyze(path: Path, days: int = 30, *, today: date | None = None) -> tuple[l
         "insights": insights,
         "exercise_recovery": exercise,
         "cardio_context": cardio_context,
+        "period_comparisons": period_comparisons,
         "sleep_intelligence": sleep_report,
         "scientific_references": {**SOURCES, **LONGITUDINAL_SOURCES},
     }

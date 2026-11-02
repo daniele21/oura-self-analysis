@@ -44,6 +44,25 @@ def run(base: str, out: Path):
                          body:document.body.scrollWidth,
                          stage:document.querySelector('.sleep-stage-hero').getBoundingClientRect().width
                     })""")
+                    # Guard against labels that overflow the actual SVG: a
+                    # document-width assertion misses clipped/overhanging tick text.
+                    axis_issues=page.evaluate("""() => {
+                      const issues=[];
+                      document.querySelectorAll('.sleep-overlay-svg').forEach((svg,index)=>{
+                        const area=svg.getBoundingClientRect();
+                        const physicalScale=area.width / svg.viewBox.baseVal.width;
+                        svg.querySelectorAll('.sleep-phase-axis').forEach(label=>{
+                          const box=label.getBoundingClientRect();
+                          const font=parseFloat(getComputedStyle(label).fontSize)*physicalScale;
+                          if(box.left<area.left+1 || box.right>area.right+1)
+                            issues.push({index, text:label.textContent, issue:'clipped axis'});
+                          if(font<11)
+                            issues.push({index, text:label.textContent, issue:'tiny axis font', font});
+                        });
+                      });
+                      return issues;
+                    }""")
+                    assert not axis_issues, f"SVG axis legibility regression at {width}px: {axis_issues}"
                     if width_report["document"]>width+1:
                         offenders=page.evaluate("""() => [...document.querySelectorAll('body *')]
                           .map(el => ({tag:el.tagName, cls:String(el.className?.baseVal||el.className||'').slice(0,80),

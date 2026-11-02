@@ -30,7 +30,8 @@ def fixture(path: Path, scenario: str):
         )""")
         for n in range(96):
             day = today - timedelta(days=n)
-            if scenario == "empty" or scenario == "sparse" and n % 6 != 0:
+            if (scenario == "empty" or (scenario == "sparse" and n % 6 != 0) or
+                    (scenario == "stale" and n < 4)):
                 continue
             if n in (3, 11, 22, 36, 61):
                 continue  # missing nights are not zeros
@@ -63,7 +64,7 @@ def fixture(path: Path, scenario: str):
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--port",type=int,default=8766)
-    parser.add_argument("--scenario",choices=("complete","sparse","empty"),default="complete")
+    parser.add_argument("--scenario",choices=("complete","sparse","empty","stale"),default="complete")
     args=parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="oura-visual-SYNTHETIC-") as tmp:
         db=Path(tmp)/"synthetic.sqlite3"

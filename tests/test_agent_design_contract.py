@@ -7,7 +7,7 @@ import re
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
-SKILLS=("oura-product-design","oura-health-charts","oura-visual-qa")
+SKILLS=("oura-design-director","oura-product-design","oura-health-charts","oura-visual-qa")
 
 
 class TestAgentDesignContract(unittest.TestCase):
@@ -55,6 +55,34 @@ class TestAgentDesignContract(unittest.TestCase):
         for item in ("Sonno","Recupero","Attività","Oggi","Insight",
                      "REM","CoverageLabel","touch"):
             self.assertIn(item.lower(),design.lower())
+
+    def test_synthesis_provenance_and_conflicts_are_explicit(self):
+        text=(ROOT/"docs/design-skill-synthesis.md").read_text(encoding="utf-8")
+        for name in ("Anthropic", "Impeccable", "Taste Skill", "UI UX Pro Max",
+                     "Vercel", "mae616", "webapp-testing"):
+            with self.subTest(reference=name):
+                self.assertIn(name.lower(), text.lower())
+        for required in ("blob SHAs", "Conflict resolution", "Privacy",
+                         "keyboard", "synthetic", "three", "rejected", "P0"):
+            self.assertIn(required.lower(), text.lower())
+        director=(ROOT/".agents/skills/oura-design-director/SKILL.md").read_text()
+        for required in ("docs/design-skill-synthesis.md", "Quiet Editorial",
+                         "Data Observatory", "Comparative Lab",
+                         "critique", "audit", "harden", "375", "127.0.0.1"):
+            self.assertIn(required.lower(),director.lower())
+
+    def test_merged_skills_have_independent_design_review_concerns(self):
+        for name in SKILLS:
+            content=(ROOT/".agents"/"skills"/name/"SKILL.md").read_text().lower()
+            self.assertIn("privacy",content)
+            self.assertIn("synthetic",content)
+        product=(ROOT/".agents/skills/oura-product-design/SKILL.md").read_text().lower()
+        charts=(ROOT/".agents/skills/oura-health-charts/SKILL.md").read_text().lower()
+        qa=(ROOT/".agents/skills/oura-visual-qa/SKILL.md").read_text().lower()
+        self.assertIn("three viable directions",product)
+        self.assertIn("same y",charts)
+        self.assertIn("focus",qa)
+        self.assertIn("not visually verified",qa)
 
     def test_skills_do_not_contain_hidden_executables_or_health_fixtures(self):
         root=ROOT/".agents"/"skills"

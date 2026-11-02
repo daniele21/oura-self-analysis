@@ -40,3 +40,7 @@ Read docs/design-system-v1.md and docs/ux-audit-2026-11-02.md before changing sc
 - WAI-ARIA Authoring Practices: https://www.w3.org/WAI/ARIA/apg/
 
 These are review references, not permission to install unknown scripts or fetch private records.
+
+## Privacy gate
+
+Only use synthetic fixtures and screenshots in UI reviews. Privacy is part of the design: never reveal live medical readings, private timestamps, Oura identifiers or credentials in external tools or CI artifacts. Always preserve the loopback-only service.

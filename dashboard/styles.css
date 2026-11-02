@@ -527,3 +527,135 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
  .sleep-overlay-svg {min-height:115px}
  .sleep-overlay-periods {flex-direction:column;gap:5px}
 }
+
+
+/* Mobile-first Sonno Observatory pilot.
+   Isolated to .view-sleep / .sleep-dashboard so other domains stay stable. */
+.view-sleep {
+  --sleep-fg:#eef5f6;
+  --sleep-secondary:#b8cad1;
+  --sleep-accent:#abe9d0;
+  --sleep-phase-light:#8ed0e6;
+  --sleep-phase-deep:#a69af5;
+  --sleep-phase-rem:#f2b38d;
+  --sleep-line:rgba(184,208,215,.16);
+}
+.view-sleep .page-heading {display:none}
+.view-sleep .main-content {padding-top:12px}
+.sleep-dashboard {display:grid;gap:20px;min-width:0}
+.sleep-dashboard .section-block {margin-top:0}
+.sleep-overview {display:grid;gap:18px;min-width:0;padding:14px 2px 0}
+.sleep-intro {display:grid;gap:6px}
+.sleep-kicker {font-size:12px;letter-spacing:.025em;font-weight:650;color:var(--sleep-accent);margin:0}
+.sleep-main-title {font-size:clamp(27px,5vw,38px);line-height:1.13;letter-spacing:-1.15px;font-weight:760;margin:0;color:var(--sleep-fg)}
+.sleep-main-description {font-size:14px;line-height:1.57;color:var(--sleep-secondary);max-width:54ch;margin:0}
+.sleep-context {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sleep-context-fact {border-top:1px solid var(--sleep-line);padding:11px 2px 0;display:grid;gap:4px;min-width:0}
+.sleep-context-label {font-size:12px;color:var(--sleep-secondary);line-height:1.45}
+.sleep-context-fact strong {font-size:14px;line-height:1.4;color:var(--sleep-fg);font-weight:690}
+.sleep-range-bar {display:grid;gap:9px;padding-top:2px}
+.sleep-range-label {color:var(--sleep-secondary);font-size:12px;font-weight:680}
+.sleep-range-bar .tab-segment {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;padding:4px;max-width:none;border-color:var(--sleep-line);background:var(--surface)}
+.sleep-range-bar .tab-segment button {padding:11px 4px;min-height:44px;font-size:13px}
+.sleep-range-bar .tab-segment button.selected {background:#295444;color:#e4faef}
+.sleep-stage-hero {background:var(--surface);border-radius:19px;border:1px solid var(--sleep-line);padding:17px 13px;min-width:0}
+.sleep-stage-heading {display:grid;gap:5px;min-width:0;margin-bottom:16px}
+.sleep-stage-heading-text {display:grid;gap:2px}
+.sleep-stage-overline {font-size:12px;color:var(--sleep-accent);font-weight:690}
+.sleep-stage-heading h2 {font-size:21px;letter-spacing:-.55px;line-height:1.24;margin:0;color:var(--sleep-fg)}
+.sleep-stage-method {font-size:12px;line-height:1.4;color:var(--sleep-secondary)}
+.sleep-dashboard .sleep-stage-hero > .sleep-phase-panel {background:transparent;box-shadow:none;border:0;border-radius:0;padding:0;display:grid;gap:15px}
+.sleep-dashboard .sleep-stage-hero .sleep-phase-controls {display:grid;gap:12px}
+.sleep-dashboard .sleep-stage-hero .sleep-phase-choice {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;min-width:0}
+.sleep-dashboard .sleep-stage-hero .sleep-phase-control-label {grid-column:1/-1;font-size:12px;letter-spacing:0;text-transform:none;font-weight:670;color:var(--sleep-secondary);margin:0 0 3px}
+.sleep-dashboard .sleep-stage-hero .sleep-phase-pill {border:1px solid transparent;border-radius:9px;min-height:49px;padding:8px 5px;font-size:12px;line-height:1.2;color:var(--sleep-secondary);background:var(--surface-2);white-space:normal}
+.sleep-dashboard .sleep-stage-hero .sleep-phase-pill.active {color:#e8f9ef;border-color:rgba(171,233,208,.35);background:#2e5148}
+.sleep-dashboard .sleep-stage-hero .sleep-phase-choice:last-child {grid-template-columns:repeat(2,minmax(0,1fr))}
+.sleep-dashboard .sleep-stage-hero .sleep-phase-choice:last-child .sleep-phase-pill {min-height:44px}
+.sleep-stage-hero .coverage-description {font-size:12px;color:var(--sleep-secondary);line-height:1.6}
+.sleep-dashboard .sleep-phase-highlight {border-top-width:3px;background:transparent;border-color:var(--sleep-line);box-shadow:none}
+.sleep-dashboard .sleep-phase-highlight span,.sleep-dashboard .sleep-phase-highlight small {color:var(--sleep-secondary)}
+.sleep-dashboard .sleep-phase-highlight.deep {border-top-color:var(--sleep-phase-deep)}
+.sleep-dashboard .sleep-phase-svg .sleep-phase-line.deep {stroke:var(--sleep-phase-deep)}
+.sleep-dashboard .sleep-phase-svg .sleep-phase-bar.deep,
+.sleep-dashboard .sleep-phase-svg .sleep-phase-dot.deep {fill:var(--sleep-phase-deep)}
+.sleep-dashboard .sleep-phase-swatch.deep {background:var(--sleep-phase-deep)}
+.sleep-dashboard .sleep-phase-axis {fill:var(--sleep-secondary)!important}
+.sleep-dashboard .sleep-overlay-period {max-width:none;gap:7px}
+.sleep-dashboard .sleep-overlay-period>span {font-size:12px;color:var(--sleep-secondary)}
+.sleep-dashboard .sleep-overlay-period .sleep-select {min-height:48px;font-size:16px;max-width:100%;background:var(--surface-2)}
+.sleep-dashboard .sleep-overlay-periods {display:grid;grid-template-columns:1fr;gap:6px;margin-top:0;padding:12px 13px;background:var(--surface-2);border-radius:12px;color:var(--sleep-secondary)}
+.sleep-dashboard .sleep-overlay-periods p {font-size:12px}
+.sleep-dashboard .sleep-overlay-legend {justify-content:flex-start;gap:10px 16px}
+.sleep-dashboard .sleep-overlay-legend span {font-size:12px;color:var(--sleep-secondary)}
+.sleep-dashboard .sleep-overlay-panels {gap:12px}
+.sleep-dashboard .sleep-overlay-panel {background:var(--surface-2);box-shadow:none;border-color:var(--sleep-line);border-radius:13px;padding:15px 12px;--phase:var(--sleep-phase-light)}
+.sleep-dashboard .sleep-overlay-panel.deep {--phase:var(--sleep-phase-deep)}
+.sleep-dashboard .sleep-overlay-panel.rem {--phase:var(--sleep-phase-rem)}
+.sleep-dashboard .sleep-overlay-panel h4 {font-size:17px;color:var(--sleep-fg)}
+.sleep-dashboard .sleep-overlay-stat span {font-size:12px;color:var(--sleep-secondary)}
+.sleep-dashboard .sleep-overlay-stat strong {font-size:15px;line-height:1.36;color:var(--sleep-fg)}
+.sleep-dashboard .sleep-overlay-panel-foot {color:var(--sleep-secondary);font-size:12px}
+.sleep-dashboard .sleep-overlay-svg {min-height:115px}
+.sleep-dashboard .sleep-phase-inspector {background:var(--surface-2);border-color:var(--sleep-line)}
+.sleep-dashboard .sleep-phase-readout {font-size:13px;line-height:1.7;color:var(--sleep-fg)}
+.sleep-dashboard .sleep-phase-range {min-height:44px}
+.sleep-dashboard .sleep-phase-legend-item {font-size:12px;color:var(--sleep-secondary)}
+.sleep-dashboard button:focus-visible,.sleep-dashboard select:focus-visible,
+.sleep-dashboard input:focus-visible,.sleep-dashboard summary:focus-visible {
+  outline:2px solid var(--sleep-accent);outline-offset:3px;
+}
+.sleep-dashboard button,.sleep-dashboard select {touch-action:manipulation}
+.sleep-deeper-analysis {min-width:0;border:1px solid var(--sleep-line);border-radius:16px;padding:0 14px 12px}
+.sleep-deeper-toggle {display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px;padding:15px 0;cursor:pointer;list-style:none}
+.sleep-deeper-toggle::-webkit-details-marker {display:none}
+.sleep-deeper-toggle span {font-size:15px;font-weight:690;color:var(--sleep-fg)}
+.sleep-deeper-toggle small {grid-column:1;grid-row:2;font-size:12px;color:var(--sleep-secondary)}
+.sleep-deeper-toggle svg {grid-column:2;grid-row:1/span 2;width:19px;transition:transform .15s}
+.sleep-deeper-analysis[open] .sleep-deeper-toggle svg {transform:rotate(180deg)}
+.sleep-deeper-analysis .section-block {margin-top:20px}
+.sleep-night-detail {min-width:0}
+.sleep-night-detail > .section-block {margin-top:12px}
+.sleep-night-detail .sleep-select {min-height:48px;font-size:16px}
+.sleep-dashboard .period-expand {min-height:44px}
+@media(min-width:600px){
+ .sleep-dashboard {gap:27px}
+ .sleep-overview {grid-template-columns:minmax(0,1.3fr) minmax(250px,.8fr);gap:26px;align-items:end;padding-top:20px}
+ .sleep-context {gap:14px}
+ .sleep-stage-hero {padding:25px}
+ .sleep-stage-heading {display:flex;align-items:end;justify-content:space-between;gap:16px}
+ .sleep-dashboard .sleep-stage-hero .sleep-phase-controls {display:flex;align-items:end;gap:18px;flex-wrap:wrap}
+ .sleep-dashboard .sleep-stage-hero .sleep-phase-choice {min-width:min(100%,370px);flex:1}
+ .sleep-dashboard .sleep-stage-hero .sleep-phase-choice:last-child {min-width:180px;max-width:220px}
+ .sleep-range-bar {display:flex;align-items:center;justify-content:space-between}
+ .sleep-range-bar .tab-segment {width:auto;min-width:270px}
+ .sleep-dashboard .sleep-overlay-periods {grid-template-columns:repeat(2,minmax(0,1fr))}
+ .sleep-dashboard .sleep-overlay-panel {padding:17px 20px}
+ .sleep-dashboard .sleep-overlay-stat strong {font-size:18px}
+}
+@media(min-width:1000px){
+ .sleep-overview {grid-template-columns:minmax(0,1.7fr) minmax(340px,.8fr)}
+ .sleep-dashboard .sleep-overlay-panels {grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}
+ .sleep-dashboard .sleep-overlay-panel {padding:15px 11px}
+ .sleep-dashboard .sleep-overlay-stat {gap:6px}
+ .sleep-dashboard .sleep-overlay-stats {gap:4px}
+ .sleep-dashboard .sleep-overlay-stat strong {font-size:15px}
+ .sleep-dashboard .sleep-overlay-svg {min-height:95px}
+ .sleep-main-title {font-size:38px}
+}
+@media(max-width:599px) {
+ .view-sleep .topbar {height:61px}
+ .view-sleep .main-content {padding:14px 14px calc(104px + env(safe-area-inset-bottom))}
+ .sleep-dashboard {gap:17px}
+ .sleep-dashboard .sleep-overlay-stats {gap:7px}
+ .sleep-dashboard .sleep-overlay-stat strong {font-size:14px}
+ .sleep-dashboard .sleep-phase-highlights {gap:7px}
+ .sleep-dashboard .sleep-phase-highlight strong {font-size:16px}
+ .sleep-dashboard .sleep-phase-highlight span,.sleep-dashboard .sleep-phase-highlight small {font-size:11px}
+ .sleep-dashboard .sleep-phase-svg {min-height:160px}
+ .sleep-dashboard .sleep-overlay-svg .sleep-phase-axis {font-size:12px}
+ .sleep-dashboard .sleep-overlay-table {overflow-x:auto}
+}
+@media(prefers-reduced-motion:reduce){
+ .sleep-dashboard * {scroll-behavior:auto!important;transition:none!important;animation:none!important}
+}

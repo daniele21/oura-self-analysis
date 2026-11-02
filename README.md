@@ -128,6 +128,21 @@ Bins are shown only if they contain at least 4 valid nominal five-minute samples
 
 The feature is **local only** and uses already authorized `sleep` data: no new OAuth scopes, remote models, record-level identifiers, additional raw-data disk storage or GitHub health logs. The browser can request at most one of the latest 90 nights per query. Technical details and limitations are in [M1 methodology](docs/m1-night-cardiovascular-profile.md). The existing summary API remains backward compatible.
 
+### Confronti gerarchici Sonno ↔ Recupero (v1)
+
+Le pagine **Sonno** e **Recupero** ora condividono un comparatore locale
+per **7v7, 7v28 e 28v28 giorni**. Ogni metrica mostra copertura, valore
+recente, riferimento e differenza, con indicatori descrittivi di dispersione
+personale e persistenza dove i dati sono sufficienti. Sono disponibili curve
+sovrapposte dei due periodi e una tabella navigabile. Per grafici che
+richiedono giorni storici non inclusi nella vista corrente, la dashboard
+propone esplicitamente la vista 30/90 giorni: il riferimento numerico
+resta comunque aggregato, senza esporre notti individuali precedenti.
+
+Le durate e le fasi del sonno sono stime del wearable; HRV e frequenza
+cardiaca non identificano automaticamente recupero atletico o salute.
+Dettagli delle finestre, qualità e limiti: [metodologia comparativa](docs/period-comparisons.md).
+
 ### Sleep stage trends — light, deep and REM
 
 In **Sonno → Fasi del sonno nel tempo**, a new dedicated chart shows the three estimated sleep phases as color-coded **stacked nightly bars** for 7/30 days or **per-night weekly averages** for the 90-day view. Switch to **Trend 7 giorni** to see three independently drawn rolling 7-calendar-day averages, or between **minutes and percentage of total sleep**. The chart includes a keyboard-accessible date scrubber and a tabular equivalent.

@@ -102,6 +102,7 @@ def make_payload(db: Path, *, days: int = 30, today: date | None = None) -> dict
         "insights": insights,
         "exercise_recovery": document.get("exercise_recovery"),
         "cardio_context": document.get("cardio_context"),
+        "period_comparisons": document.get("period_comparisons"),
         "sleep_intelligence": document.get("sleep_intelligence"),
         "metric_definitions": cardio_metric_registry.public_definitions(),
         "privacy": "Dati locali. Statistiche descrittive, non valutazioni cliniche.",

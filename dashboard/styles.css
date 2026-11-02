@@ -440,3 +440,39 @@ h1 {font-size:clamp(30px,3.9vw,44px);font-weight:780;letter-spacing:-1.8px;line-
  .sleep-phase-readout {font-size:11px}
  .sleep-phase-table {overflow-x:auto}
 }
+
+/* Period comparisons share the existing card/table design; no separate trend tab. */
+.period-compare {display:flex;flex-direction:column;gap:14px}
+.period-controls {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.period-field {display:flex;flex-direction:column;gap:7px;color:var(--muted);font-size:12px;font-weight:650}
+.period-field select {width:100%;max-width:none}
+.period-summary {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.period-stat {border:1px solid var(--stroke);background:var(--surface-2);border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.period-stat span {font-size:11px;color:var(--muted)}
+.period-stat strong {font-size:clamp(18px,2vw,25px);font-weight:730;overflow-wrap:anywhere}
+.period-stat small {font-size:11px;color:var(--dim)}
+.compare-chart {max-height:290px;margin-top:0}
+.compare-line {fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.compare-line.recent {stroke:var(--mint)}
+.compare-line.previous {stroke:var(--warm);stroke-dasharray:7 5}
+.compare-point {stroke-width:2;fill:var(--surface)}
+.compare-point.recent {stroke:var(--mint)}
+.compare-point.previous {stroke:var(--warm)}
+.compare-previous-label {color:var(--warm)}
+.period-interpretation {font-size:13px;color:var(--text);line-height:1.6;margin:0}
+.period-expand {align-self:flex-start;border:1px solid rgba(165,239,207,.25);border-radius:11px;padding:10px 14px;background:#213b34;color:var(--mint);font-size:12px;font-weight:700}
+.period-details {border-top:1px solid var(--stroke);padding-top:13px}
+.period-details summary {cursor:pointer;color:var(--mint);font-weight:650;font-size:12px}
+.period-details .feature-table {margin-top:12px}
+.period-table tbody tr {cursor:pointer}
+.period-table tbody tr:focus-visible {outline:2px solid var(--mint);outline-offset:-3px}
+.period-table tbody tr.period-selected-row {background:rgba(165,239,207,.07)}
+@media(max-width:650px) {
+  .period-controls {grid-template-columns:1fr}
+  .period-summary {gap:6px}
+  .period-stat {padding:10px 8px}
+  .period-stat strong {font-size:17px}
+  .period-stat small {font-size:10px}
+  .period-table {font-size:11px}
+  .period-compare {gap:12px}
+}

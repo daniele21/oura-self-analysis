@@ -1,6 +1,6 @@
 /* Private Oura dashboard: all health data stays in memory and is never cached. */
 "use strict";
-const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, stageMode:"composition", stageUnit:"minutes", data:null, loading:false, nightAbort:null };
+const state = { tab:"today", days:30, metric:"hrv_ms", sleepDay:null, stageMode:"composition", stageUnit:"minutes", comparison:{sleep:"7v7",recovery:"7v28"}, comparisonMetric:{sleep:"sleep_minutes",recovery:"hrv_ms"}, data:null, loading:false, nightAbort:null };
 const root = document.getElementById("view-root");
 const notice = document.getElementById("notice");
 const spinner = document.getElementById("load-state");
@@ -608,7 +608,7 @@ function recoveryView(data){
       "activity","blue"));
   a(head,stats);
   a(head,hint("Il selettore 7/30/90 cambia solo il periodo del grafico. Il confronto fisiologico utilizza sempre gli ultimi 7 giorni contro i 28 precedenti, senza sovrapposizioni."));
-  a(wrap,head);
+  a(wrap,head,periodComparisonView(data,"recovery"));
   const trends=section();
   a(trends,heading("L'andamento nel tempo","Misurazioni giornaliere"));
   a(trends,trendsView(data));
@@ -1246,12 +1246,207 @@ function sleepStageChart(data){
   return wrap;
 }
 
+
+/* Shared, read-only period comparisons. The backend supplies only aggregated
+   history outside the selected 7/30/90-day browser window. */
+function comparisonValue(value,unit){
+  const v=num(value);
+  if(v===null)return "—";
+  return format(v,unit==="bpm"||unit==="ms"?1:0)+(unit==="pp"?" pp":unit?" "+unit:"");
+}
+function comparisonPeriodRow(data,group){
+  const report=group==="sleep"?data.sleep_intelligence?.comparisons:data.period_comparisons;
+  const code=state.comparison[group];
+  return report?.windows?.[code]||null;
+}
+function comparisonProfile(data,group,comparison,metric){
+  if(metric.aggregate==="circular_sd")return {reason:"La dispersione degli orari è una proprietà del periodo: il confronto è riportato nella tabella, non come curva giornaliera."};
+  const source=group==="sleep"?data.sleep_intelligence?.nights:data.records;
+  if(!Array.isArray(source))return {reason:"Serie giornaliera non disponibile."};
+  const byDay=new Map(source.map(r=>[r.day,r]));
+  const end=data.range.end;
+  const earlierDay=new Date(parseDay(end).getTime()-comparison.recent_days*86400000).toISOString().slice(0,10);
+  const recentDates=daysArray(comparison.recent_days,end);
+  const previousDates=daysArray(comparison.reference_days,earlierDay);
+  // Only the browser's explicitly selected calendar range may be plotted.
+  // Missing observations INSIDE that range remain holes, not permission errors.
+  if(previousDates[0]<data.range.start||recentDates[recentDates.length-1]>data.range.end){
+    return {reason:"Per sovrapporre i due periodi senza esporre notti fuori dalla finestra selezionata, amplia la vista.",
+      needed:comparison.recent_days+comparison.reference_days<=30?30:90};
+  }
+  const value=d=>num(byDay.get(d)?.[metric.key]);
+  const aggregate=(vals,minimum=1)=>{
+    const v=vals.filter(x=>x!==null);
+    if(v.length<minimum)return null;
+    if(metric.aggregate==="median"){
+      const sorted=v.slice().sort((a,b)=>a-b),n=sorted.length;
+      return n%2?sorted[(n-1)/2]:(sorted[n/2-1]+sorted[n/2])/2;
+    }
+    return v.reduce((a,b)=>a+b,0)/v.length;
+  };
+  let recent=[],previous=[],labels=[],description="";
+  if(comparison.recent_days===7&&comparison.reference_days===7){
+    recent=recentDates.map(value);previous=previousDates.map(value);
+    labels=recentDates.map(d=>new Intl.DateTimeFormat("it-IT",{weekday:"short",timeZone:"UTC"}).format(parseDay(d)));
+    description="Notti allineate per giorno della settimana. Ogni punto è una notte misurata.";
+  }else if(comparison.recent_days===7&&comparison.reference_days===28){
+    recent=recentDates.map(value);
+    previous=Array.from({length:7},(_,i)=>aggregate([0,1,2,3].map(w=>value(previousDates[w*7+i])),2));
+    labels=recentDates.map(d=>new Intl.DateTimeFormat("it-IT",{weekday:"short",timeZone:"UTC"}).format(parseDay(d)));
+    description="La linea di riferimento mostra, per ogni giorno della settimana, l'aggregato di quattro settimane (se osservate); la linea recente mostra singole notti.";
+  }else{
+    recent=Array.from({length:4},(_,i)=>aggregate(recentDates.slice(i*7,(i+1)*7).map(value),4));
+    previous=Array.from({length:4},(_,i)=>aggregate(previousDates.slice(i*7,(i+1)*7).map(value),4));
+    labels=["Sett. 1","Sett. 2","Sett. 3","Sett. 4"];
+    description="Quattro blocchi settimanali consecutivi per periodo, allineati per posizione e non per data assoluta.";
+  }
+  return {recent,previous,labels,description};
+}
+function periodOverlayChart(series,metric){
+  const width=700,height=224,left=46,right=14,top=20,bottom=36;
+  const svg=s("svg",{viewBox:"0 0 700 224",class:"trend-chart compare-chart",role:"img",
+    "aria-label":"Confronto sovrapposto di "+metric.label+": periodo recente e precedente"});
+  const all=[...series.recent,...series.previous].filter(v=>v!==null&&Number.isFinite(v));
+  if(!all.length)return empty("Nessun punto confrontabile","Non vengono interpolati dati mancanti.","trend");
+  let lo=Math.min(...all),hi=Math.max(...all);
+  const pad=Math.max(.5,(hi-lo)*.13);
+  lo-=pad;hi+=pad;
+  const x=i=>left+(series.labels.length===1?0:i/(series.labels.length-1))*(width-left-right);
+  const y=v=>top+(hi-v)/(hi-lo)*(height-top-bottom);
+  for(let i=0;i<4;i++){
+    const yy=top+(height-top-bottom)*i/3;
+    a(svg,s("line",{x1:left,y1:yy,x2:width-right,y2:yy,class:"graph-grid"}),
+      s("text",{x:left-9,y:yy+4,class:"graph-label","text-anchor":"end"},format(hi-(hi-lo)*i/3,0)));
+  }
+  series.labels.forEach((label,i)=>a(svg,s("text",{x:x(i),y:height-9,
+    class:"graph-label","text-anchor":i===0?"start":i===series.labels.length-1?"end":"middle"},label)));
+  [["previous","compare-line previous"],["recent","compare-line recent"]].forEach(([key,cls])=>{
+    let run=[];
+    const flush=()=>{
+      if(run.length>=2)a(svg,s("polyline",{points:run.map(p=>p.join(",")).join(" "),class:cls}));
+      run=[];
+    };
+    series[key].forEach((v,i)=>{
+      if(v===null){flush();return;}
+      run.push([x(i),y(v)]);
+    });
+    flush();
+    series[key].forEach((v,i)=>{
+      if(v===null)return;
+      const dot=s("circle",{cx:x(i),cy:y(v),r:3.5,class:key==="recent"?"compare-point recent":"compare-point previous"});
+      a(dot,s("title",{},series.labels[i]+": "+comparisonValue(v,metric.unit)+" ("+(key==="recent"?"recente":"riferimento")+")"));
+      a(svg,dot);
+    });
+  });
+  return svg;
+}
+function periodComparisonView(data,group){
+  const report=group==="sleep"?data.sleep_intelligence?.comparisons:data.period_comparisons;
+  if(!report)return empty("Confronti non disponibili","Serve l'aggiornamento del motore locale.","trend");
+  const wrap=section();
+  a(wrap,heading(group==="sleep"?"Come cambia il tuo sonno":"Come cambia il recupero",
+    "Confronti su periodi non sovrapposti"));
+  const card=panel("period-compare");
+  const windowChoices=[["7v7","7 vs 7 giorni"],["7v28","7 vs 28 giorni"],["28v28","28 vs 28 giorni"]];
+  if(!report.windows[state.comparison[group]])state.comparison[group]=report.default_window;
+  const selected=comparisonPeriodRow(data,group);
+  const metrics=selected.metrics||[];
+  if(!metrics.some(m=>m.key===state.comparisonMetric[group]))
+    state.comparisonMetric[group]=metrics[0]?.key||null;
+  const metric=metrics.find(m=>m.key===state.comparisonMetric[group]);
+  const controls=e("div","period-controls");
+  const addSelect=(title,options,current,callback)=>{
+    const pair=e("label","period-field");
+    a(pair,e("span","",title));
+    const picker=e("select","sleep-select");
+    options.forEach(([key,label])=>{const option=e("option","",label);option.value=key;option.selected=key===current;a(picker,option);});
+    picker.value=current;picker.addEventListener("change",()=>{callback(picker.value);render();});
+    a(pair,picker);a(controls,pair);
+  };
+  addSelect("Periodo",windowChoices,state.comparison[group],v=>{state.comparison[group]=v;});
+  addSelect("Metrica",metrics.map(m=>[m.key,m.label]),state.comparisonMetric[group],v=>{state.comparisonMetric[group]=v;});
+  a(card,controls);
+  if(!metric){a(card,hint("Nessuna metrica disponibile.","info"));a(wrap,card);return wrap;}
+  const fresh=metric.recent,baseline=metric.reference;
+  const summary=e("div","period-summary");
+  const elements=[
+    ["Periodo recente",comparisonValue(fresh.value,metric.unit),fresh.valid_nights+"/"+fresh.calendar_days+" giorni"],
+    ["Riferimento",comparisonValue(baseline.value,metric.unit),baseline.valid_nights+"/"+baseline.calendar_days+" giorni"],
+    ["Differenza",metric.delta===null?"—":(metric.delta>0?"+":"")+comparisonValue(metric.delta,metric.unit),
+      metric.status==="available"?"Rispetto al riferimento":"Campione insufficiente"]];
+  elements.forEach(([title,value,description])=>{
+    const box=e("div","period-stat");
+    a(box,e("span","",title),e("strong","",value),e("small","",description));
+    a(summary,box);
+  });
+  a(card,summary);
+  const label=e("div","chart-legend");
+  a(label,e("span","legend-item","● Periodo recente"),e("span","legend-item compare-previous-label","● Riferimento"));
+  a(card,label);
+  const profile=comparisonProfile(data,group,selected,metric);
+  if(profile.reason){
+    a(card,hint(profile.reason,"info"));
+    if(profile.needed&&profile.needed>data.range.days){
+      const btn=e("button","period-expand","Apri "+profile.needed+" giorni per confrontare i trend");
+      btn.type="button";btn.addEventListener("click",()=>load(profile.needed));a(card,btn);
+    }
+  }else{
+    a(card,periodOverlayChart(profile,metric),e("p","coverage-description",profile.description));
+  }
+  if(metric.persistence&&metric.persistence.same_direction_n!==null){
+    const n=metric.persistence.same_direction_n,valid=metric.persistence.valid_n;
+    a(card,e("p","period-interpretation",
+      "Persistenza osservata: "+n+"/"+valid+" misurazioni nel periodo recente sono dalla stessa parte del valore centrale precedente. "+
+      "Sequenza massima: "+metric.persistence.longest_calendar_run+" giorni. È una descrizione statistica, non una stima di probabilità."));
+  }
+  if(metric.shift_in_baseline_spreads!==null&&metric.shift_in_baseline_spreads!==undefined)
+    a(card,e("p","coverage-description","Scostamento rispetto alla dispersione MAD storica: "+
+      format(metric.shift_in_baseline_spreads,2)+" unità. Non è una soglia clinica."));
+  const table=e("table","feature-table period-table"),head=e("thead"),headingRow=e("tr");
+  ["Indicatore","Recente","Riferimento","Δ"].forEach(v=>a(headingRow,e("th","",v)));
+  a(head,headingRow);a(table,head);
+  const body=e("tbody");
+  metrics.forEach(m=>{
+    const tr=e("tr",m.key===metric.key?"period-selected-row":"");
+    const value=m.delta===null?"—":(m.delta>0?"+":"")+comparisonValue(m.delta,m.unit);
+    a(tr,e("td","",m.label),e("td","",comparisonValue(m.recent.value,m.unit)),
+      e("td","",comparisonValue(m.reference.value,m.unit)),e("td","",value));
+    tr.tabIndex=0;tr.setAttribute("role","button");
+    tr.setAttribute("aria-label","Mostra "+m.label);
+    const activate=()=>{state.comparisonMetric[group]=m.key;render();};
+    tr.addEventListener("click",activate);
+    tr.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();activate();}});
+    a(body,tr);
+  });
+  a(table,body);
+  const details=e("details","period-details"),description=e("summary","","Confronta tutte le metriche");
+  a(details,description,table);a(card,details);
+  const duration=metrics.find(m=>m.key==="sleep_minutes");
+  const hrv=metrics.find(m=>m.key==="hrv_ms"),hr=metrics.find(m=>m.key==="rhr_bpm");
+  if(group==="sleep"&&duration?.status==="available"){
+    a(card,hint("Durata del sonno: "+(duration.delta>=0?"+":"")+format(duration.delta,0)+
+      " min rispetto al riferimento. Le fasi del sonno sono stime: valuta sempre sia minuti sia quote percentuali.","moon"));
+  }
+  if(group==="recovery"&&hrv?.status==="available"&&hr?.status==="available"){
+    const opposite=(hrv.delta<0&&hr.delta>0)||(hrv.delta>0&&hr.delta<0);
+    a(card,hint("Lettura congiunta: HRV "+(hrv.delta>=0?"+":"")+format(hrv.delta,1)+" ms, FC minima "+
+      (hr.delta>=0?"+":"")+format(hr.delta,1)+" bpm. "+
+      (opposite?"Le variazioni hanno direzioni opposte.":"I due indicatori non seguono direzioni opposte.")+
+      " Nessuna conclusione automatica sul recupero o sulle cause.","heart"));
+  }
+  a(card,e("p","coverage-description",
+    "I valori mancanti rimangono assenti. Media per il sonno, mediana per HRV/FC; gli orari usano una deviazione standard circolare. "+
+    "Non sono stime di qualità clinica, rischio o capacità di allenamento."));
+  a(wrap,card);
+  return wrap;
+}
+
 function sleepView(data){
   if(!data.sleep_intelligence)return empty("Modulo non disponibile","Aggiorna il motore Oura sul Mac.","moon");
   const wrap=e("div"),tools=e("div","trend-toolbox");
   a(tools,e("span","section-subtitle","Esplora 7, 30 o 90 giorni"),
     segment([7,30,90],state.days,n=>load(n)));
-  a(wrap,tools,sleepStageChart(data),sleepWeekly(data),sleepDaily(data),
+  a(wrap,tools,periodComparisonView(data,"sleep"),sleepStageChart(data),sleepWeekly(data),sleepDaily(data),
     hint("Le analisi descrivono variazioni personali, non diagnosticano disturbi del sonno. L'assenza di dati non significa assenza di sonno.","shield"));
   return wrap;
 }
